@@ -85,28 +85,27 @@ exports.handler = async function (event) {
     console.log('[sold-scraper] jumlah harga ditemukan dengan regex s-item__price:', prices.length);
 
     // DIAGNOSTIK SEMENTARA: kalau 0 harga ketemu, tunjukkan cuplikan HTML di
-    // sekitar kemunculan SIMBOL DOLLAR ($) di bagian listing (bukan di meta
-    // tag SEO bagian <head>) -- karena nama class CSS eBay ternyata sudah
-    // berubah dan tidak lagi memuat "s-item__price". Cari beberapa contoh
-    // titik kemunculan supaya kita lihat pola markup yang sebenarnya dipakai.
+    // sekitar BEBERAPA kemunculan simbol dollar ($) -- kemunculan paling awal
+    // biasanya masih bagian filter sidebar ("Under $15.00" dst), bukan listing
+    // produk sungguhan. Kita ambil kemunculan ke-8 s.d. ke-12 supaya kemungkinan
+    // besar sudah melewati filter dan masuk ke area listing produk asli.
     if (!prices.length) {
       const lowerHtml = html.toLowerCase();
 
-      // Lewati bagian <head> (meta tags SEO penuh kata "price") -- mulai cari
-      // dari <body untuk fokus ke listing produk sungguhan.
-      const bodyStart = lowerHtml.indexOf('<body');
-      const searchFrom = bodyStart !== -1 ? bodyStart : 0;
+      const dollarIndices = [];
+      let searchPos = 0;
+      while (dollarIndices.length < 15) {
+        const idx = html.indexOf('$', searchPos);
+        if (idx === -1) break;
+        dollarIndices.push(idx);
+        searchPos = idx + 1;
+      }
+      console.log('[sold-scraper] DIAGNOSTIK total kemunculan $ ditemukan (maks 15 dicatat):', dollarIndices.length);
 
-      const dollarIdx1 = html.indexOf('$', searchFrom);
-      if (dollarIdx1 !== -1) {
-        console.log('[sold-scraper] DIAGNOSTIK cuplikan sekitar simbol $ pertama (setelah <body):', html.slice(Math.max(0, dollarIdx1 - 200), dollarIdx1 + 100));
-
-        const dollarIdx2 = html.indexOf('$', dollarIdx1 + 100);
-        if (dollarIdx2 !== -1) {
-          console.log('[sold-scraper] DIAGNOSTIK cuplikan sekitar simbol $ kedua:', html.slice(Math.max(0, dollarIdx2 - 200), dollarIdx2 + 100));
-        }
-      } else {
-        console.log('[sold-scraper] DIAGNOSTIK: simbol $ sama sekali tidak ditemukan di body HTML.');
+      // Tampilkan cuplikan di sekitar kemunculan ke-8 s.d. ke-12 (index 7-11)
+      for (let i = 7; i <= 11 && i < dollarIndices.length; i++) {
+        const idx = dollarIndices[i];
+        console.log(`[sold-scraper] DIAGNOSTIK cuplikan sekitar $ ke-${i + 1}:`, html.slice(Math.max(0, idx - 250), idx + 50));
       }
 
       // Cek juga indikasi captcha/blocking dari eBay
