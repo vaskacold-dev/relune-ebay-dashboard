@@ -66,17 +66,23 @@ exports.handler = async function (event) {
     console.log('[sold-scraper] panjang HTML diterima:', html.length, 'karakter');
     console.log('[sold-scraper] cuplikan awal HTML:', html.slice(0, 300));
 
-    const cheerio = require('cheerio');
-    const $ = cheerio.load(html);
-
+    // Catatan: sebelumnya parsing pakai library "cheerio", tapi cheerio versi
+    // terbaru butuh global "File" API yang tidak selalu tersedia di runtime
+    // serverless Netlify -- menyebabkan error "File is not defined". Untuk
+    // menghindari dependency itu sepenuhnya, kita parsing harga langsung dari
+    // HTML mentah pakai regex. Ini lebih ringan dan tidak rentan masalah versi.
     const prices = [];
-    // --- SELECTOR INI BISA BERUBAH KAPAN SAJA KARENA EBAY SERING UPDATE HTML-NYA ---
-    $('.s-item__price').each((_, el) => {
-      const text = $(el).text().replace(/[^0-9.]/g, '');
-      const value = parseFloat(text);
-      if (!Number.isNaN(value)) prices.push(value);
-    });
-    console.log('[sold-scraper] jumlah harga ditemukan dengan selector .s-item__price:', prices.length);
+    // Pola umum di markup hasil pencarian eBay: class "s-item__price" diikuti
+    // teks harga dalam format "$123.45" (kadang ada koma untuk ribuan).
+    const priceBlockRegex = /s-item__price[^>]*>([^<]*)</g;
+    let match;
+    while ((match = priceBlockRegex.exec(html)) !== null) {
+      const rawText = match[1];
+      const cleaned = rawText.replace(/[^0-9.]/g, '');
+      const value = parseFloat(cleaned);
+      if (!Number.isNaN(value) && value > 0) prices.push(value);
+    }
+    console.log('[sold-scraper] jumlah harga ditemukan dengan regex s-item__price:', prices.length);
 
     if (!prices.length) {
       return {
