@@ -24,7 +24,13 @@
 function buildScraperRequestUrl(targetUrl) {
   const apiKey = process.env.SCRAPER_API_KEY;
   // --- GANTI BARIS INI SESUAI PROVIDER ANDA ---
-  return `https://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(targetUrl)}`;
+  // country_code=us memaksa ScraperAPI memakai IP dari Amerika Serikat, supaya
+  // eBay selalu mengembalikan halaman versi US (bahasa Inggris, mata uang USD).
+  // Tanpa ini, ScraperAPI bisa memakai IP dari negara mana pun secara acak,
+  // dan eBay akan menampilkan versi lokal negara itu (contoh: bahasa Portugis
+  // + mata uang R$ kalau IP terdeteksi dari Brasil) -- yang membuat parsing
+  // harga di bawah jadi gagal karena formatnya berbeda dari yang diharapkan.
+  return `https://api.scraperapi.com?api_key=${apiKey}&country_code=us&url=${encodeURIComponent(targetUrl)}`;
 }
 
 exports.handler = async function (event) {
@@ -83,6 +89,22 @@ exports.handler = async function (event) {
       if (!Number.isNaN(value) && value > 0) prices.push(value);
     }
     console.log('[sold-scraper] jumlah harga ditemukan dengan regex s-item__price:', prices.length);
+
+    // FALLBACK: kalau selector class di atas tidak menemukan apa pun (tanda
+    // eBay sudah mengubah nama class CSS-nya lagi), coba cari langsung pola
+    // umum harga listing dalam format "$123.45" atau "$1,234.56" di body HTML.
+    // Ini kurang presisi (bisa menangkap harga shipping/filter juga), tapi
+    // jadi fallback yang masih lebih baik daripada gagal total.
+    if (!prices.length) {
+      const genericPriceRegex = />\s*\$\s?([0-9][0-9,]*\.[0-9]{2})\s*</g;
+      let gMatch;
+      while ((gMatch = genericPriceRegex.exec(html)) !== null) {
+        const cleaned = gMatch[1].replace(/,/g, '');
+        const value = parseFloat(cleaned);
+        if (!Number.isNaN(value) && value > 0) prices.push(value);
+      }
+      console.log('[sold-scraper] fallback: jumlah harga ditemukan dengan pola generik $xx.xx:', prices.length);
+    }
 
     // DIAGNOSTIK SEMENTARA: kalau 0 harga ketemu, tunjukkan cuplikan HTML di
     // sekitar BEBERAPA kemunculan simbol dollar ($) -- kemunculan paling awal
