@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EbayIQ — eBay Market Intelligence Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo-mark">Iq</div>
+      <div class="brand-text">
+        <span class="brand-name">EbayIQ</span>
+        <span class="brand-sub">Market Intelligence</span>
+      </div>
+    </div>
+
+    <ul class="nav-list" id="navList">
+      <div class="nav-section-label">Riset</div>
+      <li class="nav-item active" data-page="overview"><span class="dot"></span> Dashboard Overview</li>
+      <li class="nav-item" data-page="pricing"><span class="dot"></span> Pricing Intelligence</li>
+      <li class="nav-item" data-page="demand"><span class="dot"></span> Demand &amp; Timing</li>
+      <li class="nav-item" data-page="competition"><span class="dot"></span> Competition Intelligence</li>
+      <li class="nav-item" data-page="buyer"><span class="dot"></span> Buyer Intelligence</li>
+      <li class="nav-item" data-page="keyword"><span class="dot"></span> Keyword Intelligence</li>
+      <li class="nav-item" data-page="product"><span class="dot"></span> Product Intelligence</li>
+      <li class="nav-item" data-page="strategy"><span class="dot"></span> Strategy Center</li>
+
+      <div class="nav-section-label">Kelola</div>
+      <li class="nav-item" data-page="saved"><span class="dot"></span> Saved Products</li>
+      <li class="nav-item" data-page="reports"><span class="dot"></span> Reports</li>
+      <li class="nav-item" data-page="settings"><span class="dot"></span> API Settings</li>
+    </ul>
+
+    <div class="sidebar-footer">EbayIQ v1.0 &middot; Data real-time via eBay Browse API</div>
+  </aside>
+
+  <!-- ===================== MAIN ===================== -->
+  <div class="main">
+
+    <div class="topbar">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <button class="menu-toggle" id="menuToggle">☰</button>
+        <div style="flex:1; min-width:0;">
+          <div class="search-card">
+            <div class="search-row">
+              <div class="search-input-wrap">
+                <input type="text" id="searchInput" placeholder="Cari produk, contoh: exhaust yamaha r3, vintage levi 501, nike air jordan 1" />
+              </div>
+              <select class="select-control" id="conditionFilter">
+                <option value="ALL">Kondisi: Semua</option>
+                <option value="NEW">Kondisi: Baru</option>
+                <option value="USED">Kondisi: Bekas</option>
+              </select>
+              <select class="select-control" id="marketplaceFilter">
+                <option value="US">Marketplace: US</option>
+                <option value="UK">Marketplace: UK</option>
+                <option value="GLOBAL">Marketplace: Global</option>
+              </select>
+              <button class="btn-analyze" id="analyzeBtn">Analyze</button>
+            </div>
+            <div class="chips-row">
+              <span class="chip" data-chip="exhaust yamaha r3">exhaust yamaha r3</span>
+              <span class="chip" data-chip="vintage levi 501">vintage levi 501</span>
+              <span class="chip" data-chip="nike air jordan 1">nike air jordan 1</span>
+              <span class="chip" data-chip="iphone 13 pro max">iphone 13 pro max</span>
+              <span class="chip" data-chip="pokemon card charizard">pokemon card charizard</span>
+              <span class="chip" data-chip="vintage rolex watch">vintage rolex watch</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="content" id="content">
+      <div class="empty-state" id="emptyState">
+        <div class="emoji">🔎</div>
+        <div style="font-weight:600; font-size:15px; margin-bottom:4px;">Belum ada produk dianalisis</div>
+        <div>Ketik nama produk di atas lalu klik <strong>Analyze</strong>, atau pilih salah satu Quick Suggestion.</div>
+      </div>
+
+      <div id="pages" style="display:none;">
+
+        <!-- ============ OVERVIEW ============ -->
+        <section data-content="overview">
+          <div class="section-title" id="overviewTitle">Dashboard Overview</div>
+          <div class="section-subtitle">Ringkasan kelayakan pasar berdasarkan data eBay real-time.</div>
+
+          <div class="grid grid-3" id="scoreGrid"></div>
+
+          <div class="grid grid-2" style="margin-top:14px;">
+            <div class="card">
+              <div class="card-title">Market Summary</div>
+              <div id="marketSummary" class="loading-state">Memuat analisis AI...</div>
+            </div>
+            <div class="card">
+              <div class="card-title">Product Health &amp; Recommended Action</div>
+              <div id="healthBlock" class="loading-state">Memuat analisis AI...</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ PRICING ============ -->
+        <section data-content="pricing">
+          <div class="section-title">Pricing Intelligence</div>
+          <div class="section-subtitle">Dihitung dari asking price listing AKTIF eBay (bukan harga sold).</div>
+
+          <div class="kpi-row" id="pricingKpis"></div>
+
+          <div class="grid grid-2">
+            <div class="card module-card pricing">
+              <div class="card-title">Distribusi Harga</div>
+              <canvas id="priceHistogramChart" height="220"></canvas>
+            </div>
+            <div class="card module-card pricing">
+              <div class="card-title">Buy It Now vs Auction</div>
+              <canvas id="binAuctionChart" height="220"></canvas>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ DEMAND ============ -->
+        <section data-content="demand">
+          <div class="section-title">Demand &amp; Timing</div>
+          <div class="section-subtitle">Data sold/terjual memerlukan Scraper API pihak ketiga (eBay tidak menyediakan API resmi untuk ini).</div>
+          <div id="demandBody"></div>
+        </section>
+
+        <!-- ============ COMPETITION ============ -->
+        <section data-content="competition">
+          <div class="section-title">Competition Intelligence</div>
+          <div class="section-subtitle">Seberapa padat &amp; terkonsentrasi pasar ini, berdasarkan seller pada listing aktif.</div>
+
+          <div class="kpi-row" id="competitionKpis"></div>
+
+          <div class="grid grid-2">
+            <div class="card module-card competition">
+              <div class="card-title">Top Sellers (berdasarkan jumlah listing aktif)</div>
+              <div id="topSellersList"></div>
+            </div>
+            <div class="card module-card competition">
+              <div class="card-title">Penilaian Entry Barrier</div>
+              <div id="entryBarrierBlock" class="loading-state">Memuat analisis AI...</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ BUYER ============ -->
+        <section data-content="buyer">
+          <div class="section-title">Buyer Intelligence</div>
+          <div class="section-subtitle">Sinyal berbasis lokasi &amp; preferensi pengiriman dari listing aktif (bukan data buyer eBay langsung — eBay tidak membuka data ini ke seller lain).</div>
+          <div id="buyerBody"></div>
+        </section>
+
+        <!-- ============ KEYWORD ============ -->
+        <section data-content="keyword">
+          <div class="section-title">Keyword Intelligence</div>
+          <div class="section-subtitle">Dihitung dari frekuensi kata pada judul listing aktif yang benar-benar muncul di eBay.</div>
+
+          <div class="grid grid-2">
+            <div class="card module-card keyword">
+              <div class="card-title">Power Keywords</div>
+              <div id="powerKeywords"></div>
+            </div>
+            <div class="card module-card keyword">
+              <div class="card-title">Judul Listing Teroptimasi (AI)</div>
+              <div id="optimizedTitleBlock" class="loading-state">Memuat analisis AI...</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ PRODUCT ============ -->
+        <section data-content="product">
+          <div class="section-title">Product Intelligence</div>
+          <div class="section-subtitle">Variasi kondisi pada listing aktif saat ini.</div>
+          <div id="productBody"></div>
+        </section>
+
+        <!-- ============ STRATEGY ============ -->
+        <section data-content="strategy">
+          <div class="section-title">Strategy Center</div>
+          <div class="section-subtitle">Insight &amp; rencana aksi yang digenerate AI berdasarkan data eBay real di atas.</div>
+
+          <div class="card final-rec" id="finalRecCard" style="margin-bottom:16px;">
+            <div class="loading-state">Memuat rekomendasi akhir...</div>
+          </div>
+
+          <div class="grid grid-2">
+            <div class="card">
+              <div class="card-title">5 AI Insights</div>
+              <ul class="insight-list" id="insightList"><li class="loading-state">Memuat...</li></ul>
+            </div>
+            <div class="card">
+              <div class="card-title">5 Action Plans</div>
+              <ul class="action-list" id="actionList"><li class="loading-state">Memuat...</li></ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ SAVED ============ -->
+        <section data-content="saved">
+          <div class="section-title">Saved Products</div>
+          <div class="section-subtitle">Disimpan secara lokal di browser ini (belum sinkron antar perangkat).</div>
+          <div class="card">
+            <div id="savedList"><div class="empty-state"><div class="emoji">📌</div>Belum ada produk disimpan.</div></div>
+          </div>
+        </section>
+
+        <!-- ============ REPORTS ============ -->
+        <section data-content="reports">
+          <div class="section-title">Reports</div>
+          <div class="section-subtitle">Export hasil analisis produk yang sedang aktif.</div>
+          <div class="card" style="display:flex; gap:12px; flex-wrap:wrap;">
+            <button class="btn-secondary" id="exportCsvBtn">⬇️ Export CSV (Excel)</button>
+            <button class="btn-secondary" id="exportPdfBtn">🖨️ Export PDF (Print)</button>
+          </div>
+          <div class="banner info" style="margin-top:14px;">CSV berisi seluruh listing yang berhasil diambil dari eBay pada analisis terakhir. Export PDF menggunakan dialog print browser — pilih "Save as PDF".</div>
+        </section>
+
+        <!-- ============ SETTINGS ============ -->
+        <section data-content="settings">
+          <div class="section-title">API Settings</div>
+          <div class="section-subtitle">Kredensial disimpan sebagai Environment Variables di Netlify (bukan di browser) demi keamanan.</div>
+
+          <div class="card">
+            <div class="api-row">
+              <div>
+                <div class="api-name"><span class="status-dot unknown" id="dotEbay"></span>eBay Browse API</div>
+                <div class="api-desc">Listing aktif, harga, kompetitor, link produk asli.</div>
+              </div>
+              <button class="btn-secondary" id="checkEbayBtn">Cek Koneksi</button>
+            </div>
+            <div class="api-row">
+              <div>
+                <div class="api-name"><span class="status-dot unknown" id="dotDeepseek"></span>DeepSeek AI</div>
+                <div class="api-desc">AI Insight &amp; Strategy Center.</div>
+              </div>
+              <button class="btn-secondary" id="checkDeepseekBtn">Cek Koneksi</button>
+            </div>
+            <div class="api-row">
+              <div>
+                <div class="api-name"><span class="status-dot unknown" id="dotScraper"></span>Scraper API (opsional)</div>
+                <div class="api-desc">Data sold/terjual untuk Demand &amp; Timing.</div>
+              </div>
+              <button class="btn-secondary" id="checkScraperBtn">Cek Koneksi</button>
+            </div>
+          </div>
+
+          <div class="banner warn" style="margin-top:16px;">
+            Untuk mengisi/mengganti kunci API, buka <strong>Netlify Dashboard → Site configuration → Environment variables</strong>, bukan dari halaman ini. Ini sengaja, supaya Client Secret tidak pernah terkirim ke browser. Lihat README.md di project untuk daftar lengkap nama variabel.
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+</body>
+</html>
