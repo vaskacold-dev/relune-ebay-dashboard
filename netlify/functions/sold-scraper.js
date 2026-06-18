@@ -85,16 +85,30 @@ exports.handler = async function (event) {
     console.log('[sold-scraper] jumlah harga ditemukan dengan regex s-item__price:', prices.length);
 
     // DIAGNOSTIK SEMENTARA: kalau 0 harga ketemu, tunjukkan cuplikan HTML di
-    // sekitar kemunculan kata "price" supaya kita bisa lihat pola asli yang
-    // dipakai eBay saat ini, lalu sesuaikan regex di atas.
+    // sekitar kemunculan SIMBOL DOLLAR ($) di bagian listing (bukan di meta
+    // tag SEO bagian <head>) -- karena nama class CSS eBay ternyata sudah
+    // berubah dan tidak lagi memuat "s-item__price". Cari beberapa contoh
+    // titik kemunculan supaya kita lihat pola markup yang sebenarnya dipakai.
     if (!prices.length) {
       const lowerHtml = html.toLowerCase();
-      const firstPriceIdx = lowerHtml.indexOf('price');
-      if (firstPriceIdx !== -1) {
-        console.log('[sold-scraper] DIAGNOSTIK cuplikan sekitar kata "price":', html.slice(Math.max(0, firstPriceIdx - 150), firstPriceIdx + 300));
+
+      // Lewati bagian <head> (meta tags SEO penuh kata "price") -- mulai cari
+      // dari <body untuk fokus ke listing produk sungguhan.
+      const bodyStart = lowerHtml.indexOf('<body');
+      const searchFrom = bodyStart !== -1 ? bodyStart : 0;
+
+      const dollarIdx1 = html.indexOf('$', searchFrom);
+      if (dollarIdx1 !== -1) {
+        console.log('[sold-scraper] DIAGNOSTIK cuplikan sekitar simbol $ pertama (setelah <body):', html.slice(Math.max(0, dollarIdx1 - 200), dollarIdx1 + 100));
+
+        const dollarIdx2 = html.indexOf('$', dollarIdx1 + 100);
+        if (dollarIdx2 !== -1) {
+          console.log('[sold-scraper] DIAGNOSTIK cuplikan sekitar simbol $ kedua:', html.slice(Math.max(0, dollarIdx2 - 200), dollarIdx2 + 100));
+        }
       } else {
-        console.log('[sold-scraper] DIAGNOSTIK: kata "price" sama sekali tidak ditemukan di HTML. Mungkin halaman captcha/blokir.');
+        console.log('[sold-scraper] DIAGNOSTIK: simbol $ sama sekali tidak ditemukan di body HTML.');
       }
+
       // Cek juga indikasi captcha/blocking dari eBay
       if (lowerHtml.includes('captcha') || lowerHtml.includes('pardon our interruption') || lowerHtml.includes('are you a human')) {
         console.log('[sold-scraper] DIAGNOSTIK: terindikasi halaman CAPTCHA/blokir dari eBay, bukan halaman hasil pencarian asli.');
