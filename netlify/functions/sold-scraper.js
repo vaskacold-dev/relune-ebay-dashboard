@@ -84,6 +84,23 @@ exports.handler = async function (event) {
     }
     console.log('[sold-scraper] jumlah harga ditemukan dengan regex s-item__price:', prices.length);
 
+    // DIAGNOSTIK SEMENTARA: kalau 0 harga ketemu, tunjukkan cuplikan HTML di
+    // sekitar kemunculan kata "price" supaya kita bisa lihat pola asli yang
+    // dipakai eBay saat ini, lalu sesuaikan regex di atas.
+    if (!prices.length) {
+      const lowerHtml = html.toLowerCase();
+      const firstPriceIdx = lowerHtml.indexOf('price');
+      if (firstPriceIdx !== -1) {
+        console.log('[sold-scraper] DIAGNOSTIK cuplikan sekitar kata "price":', html.slice(Math.max(0, firstPriceIdx - 150), firstPriceIdx + 300));
+      } else {
+        console.log('[sold-scraper] DIAGNOSTIK: kata "price" sama sekali tidak ditemukan di HTML. Mungkin halaman captcha/blokir.');
+      }
+      // Cek juga indikasi captcha/blocking dari eBay
+      if (lowerHtml.includes('captcha') || lowerHtml.includes('pardon our interruption') || lowerHtml.includes('are you a human')) {
+        console.log('[sold-scraper] DIAGNOSTIK: terindikasi halaman CAPTCHA/blokir dari eBay, bukan halaman hasil pencarian asli.');
+      }
+    }
+
     if (!prices.length) {
       return {
         statusCode: 200,
