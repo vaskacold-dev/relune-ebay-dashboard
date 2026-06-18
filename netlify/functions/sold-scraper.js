@@ -30,6 +30,8 @@ function buildScraperRequestUrl(targetUrl) {
 exports.handler = async function (event) {
   try {
     const apiKey = process.env.SCRAPER_API_KEY;
+    console.log('[sold-scraper] apiKey terbaca?', apiKey ? `YA (panjang ${apiKey.length} karakter)` : 'TIDAK (undefined/kosong)');
+
     if (!apiKey) {
       return {
         statusCode: 200,
@@ -43,18 +45,26 @@ exports.handler = async function (event) {
     }
 
     const query = (event.queryStringParameters?.q || '').trim();
+    console.log('[sold-scraper] query:', query);
     if (!query) {
       return { statusCode: 400, body: JSON.stringify({ error: 'Parameter q wajib diisi.' }) };
     }
 
     const targetUrl = `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(query)}&LH_Sold=1&LH_Complete=1`;
     const scraperUrl = buildScraperRequestUrl(targetUrl);
+    console.log('[sold-scraper] memanggil scraper untuk targetUrl:', targetUrl);
 
     const res = await fetch(scraperUrl);
+    console.log('[sold-scraper] status response dari ScraperAPI:', res.status);
+
     if (!res.ok) {
+      const errBody = await res.text();
+      console.log('[sold-scraper] body error dari ScraperAPI:', errBody.slice(0, 500));
       throw new Error(`Scraper API merespons error (status ${res.status}). Cek kuota/API key scraper Anda.`);
     }
     const html = await res.text();
+    console.log('[sold-scraper] panjang HTML diterima:', html.length, 'karakter');
+    console.log('[sold-scraper] cuplikan awal HTML:', html.slice(0, 300));
 
     const cheerio = require('cheerio');
     const $ = cheerio.load(html);
@@ -66,6 +76,7 @@ exports.handler = async function (event) {
       const value = parseFloat(text);
       if (!Number.isNaN(value)) prices.push(value);
     });
+    console.log('[sold-scraper] jumlah harga ditemukan dengan selector .s-item__price:', prices.length);
 
     if (!prices.length) {
       return {
@@ -81,6 +92,7 @@ exports.handler = async function (event) {
     }
 
     const avgSold = prices.reduce((a, b) => a + b, 0) / prices.length;
+    console.log('[sold-scraper] SUKSES, avgSoldPrice:', avgSold.toFixed(2));
 
     return {
       statusCode: 200,
@@ -96,6 +108,7 @@ exports.handler = async function (event) {
       }),
     };
   } catch (err) {
+    console.log('[sold-scraper] ERROR tertangkap:', err.message);
     return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: err.message }) };
   }
 };
