@@ -24,7 +24,7 @@
     </div>
 
     <ul class="nav-list" id="navList">
-      <div class="nav-section-label">Riset</div>
+      <div class="nav-section-label">Research</div>
       <li class="nav-item active" data-page="overview"><span class="dot"></span> Dashboard Overview</li>
       <li class="nav-item" data-page="pricing"><span class="dot"></span> Pricing Intelligence</li>
       <li class="nav-item" data-page="demand"><span class="dot"></span> Demand &amp; Timing</li>
@@ -34,13 +34,13 @@
       <li class="nav-item" data-page="product"><span class="dot"></span> Product Intelligence</li>
       <li class="nav-item" data-page="strategy"><span class="dot"></span> Strategy Center</li>
 
-      <div class="nav-section-label">Kelola</div>
+      <div class="nav-section-label">Manage</div>
       <li class="nav-item" data-page="saved"><span class="dot"></span> Saved Products</li>
       <li class="nav-item" data-page="reports"><span class="dot"></span> Reports</li>
       <li class="nav-item" data-page="settings"><span class="dot"></span> API Settings</li>
     </ul>
 
-    <div class="sidebar-footer">EbayIQ v1.0 &middot; Data real-time via eBay Browse API</div>
+    <div class="sidebar-footer">EbayIQ v1.0 &middot; Real-time data via eBay Browse API</div>
   </aside>
 
   <!-- ===================== MAIN ===================== -->
@@ -56,14 +56,14 @@
                 <input type="text" id="searchInput" placeholder="Cari produk, contoh: exhaust yamaha r3, vintage levi 501, nike air jordan 1" />
               </div>
               <select class="select-control" id="conditionFilter">
-                <option value="ALL">Kondisi: Semua</option>
-                <option value="NEW">Kondisi: Baru</option>
+                <option value="ALL">Condition: All</option>
+                <option value="NEW">Condition: New</option>
                 <option value="USED">Kondisi: Bekas</option>
               </select>
               <select class="select-control" id="marketplaceFilter">
                 <option value="US">Marketplace: US</option>
                 <option value="UK">Marketplace: UK</option>
-                <option value="GLOBAL">Marketplace: Global</option>
+                <option value="GLOBAL">Condition: Used</option>
               </select>
               <button class="btn-analyze" id="analyzeBtn">Analyze</button>
             </div>
@@ -83,8 +83,8 @@
     <div class="content" id="content">
       <div class="empty-state" id="emptyState">
         <div class="emoji">🔎</div>
-        <div style="font-weight:600; font-size:15px; margin-bottom:4px;">Belum ada produk dianalisis</div>
-        <div>Ketik nama produk di atas lalu klik <strong>Analyze</strong>, atau pilih salah satu Quick Suggestion.</div>
+        <div style="font-weight:600; font-size:15px; margin-bottom:4px;">No product analyzed yet</div>
+        <div>Type a product name above and click <strong>Analyze</strong>, or pick one of the Quick Suggestions.</div>
       </div>
 
       <div id="pages" style="display:none;">
@@ -92,18 +92,18 @@
         <!-- ============ OVERVIEW ============ -->
         <section data-content="overview">
           <div class="section-title" id="overviewTitle">Dashboard Overview</div>
-          <div class="section-subtitle">Ringkasan kelayakan pasar berdasarkan data eBay real-time.</div>
+          <div class="section-subtitle">Market viability summary based on real-time eBay data.</div>
 
           <div class="grid grid-3" id="scoreGrid"></div>
 
           <div class="grid grid-2" style="margin-top:14px;">
             <div class="card">
               <div class="card-title">Market Summary</div>
-              <div id="marketSummary" class="loading-state">Memuat analisis AI...</div>
+              <div id="marketSummary" class="loading-state">Loading AI analysis...</div>
             </div>
             <div class="card">
               <div class="card-title">Product Health &amp; Recommended Action</div>
-              <div id="healthBlock" class="loading-state">Memuat analisis AI...</div>
+              <div id="healthBlock" class="loading-state">Loading AI analysis...</div>
             </div>
           </div>
         </section>
@@ -111,13 +111,13 @@
         <!-- ============ PRICING ============ -->
         <section data-content="pricing">
           <div class="section-title">Pricing Intelligence</div>
-          <div class="section-subtitle">Dihitung dari asking price listing AKTIF eBay (bukan harga sold).</div>
+          <div class="section-subtitle">Calculated from asking prices on ACTIVE eBay listings (not sold prices).</div>
 
           <div class="kpi-row" id="pricingKpis"></div>
 
           <div class="grid grid-2">
             <div class="card module-card pricing">
-              <div class="card-title">Distribusi Harga</div>
+              <div class="card-title">Price Distribution</div>
               <canvas id="priceHistogramChart" height="220"></canvas>
             </div>
             <div class="card module-card pricing">
@@ -130,25 +130,25 @@
         <!-- ============ DEMAND ============ -->
         <section data-content="demand">
           <div class="section-title">Demand &amp; Timing</div>
-          <div class="section-subtitle">Data sold/terjual memerlukan Scraper API pihak ketiga (eBay tidak menyediakan API resmi untuk ini).</div>
+          <div class="section-subtitle">Sold/completed data requires a third-party Scraper API (eBay does not provide an official API for this).</div>
           <div id="demandBody"></div>
         </section>
 
         <!-- ============ COMPETITION ============ -->
         <section data-content="competition">
           <div class="section-title">Competition Intelligence</div>
-          <div class="section-subtitle">Seberapa padat &amp; terkonsentrasi pasar ini, berdasarkan seller pada listing aktif.</div>
+          <div class="section-subtitle">How dense &amp; concentrated this market is, based on sellers in active listings.</div>
 
           <div class="kpi-row" id="competitionKpis"></div>
 
           <div class="grid grid-2">
             <div class="card module-card competition">
-              <div class="card-title">Top Sellers (berdasarkan jumlah listing aktif)</div>
+              <div class="card-title">Top Sellers (by number of active listings)</div>
               <div id="topSellersList"></div>
             </div>
             <div class="card module-card competition">
-              <div class="card-title">Penilaian Entry Barrier</div>
-              <div id="entryBarrierBlock" class="loading-state">Memuat analisis AI...</div>
+              <div class="card-title">Entry Barrier Assessment</div>
+              <div id="entryBarrierBlock" class="loading-state">Loading AI analysis...</div>
             </div>
           </div>
         </section>
@@ -156,14 +156,14 @@
         <!-- ============ BUYER ============ -->
         <section data-content="buyer">
           <div class="section-title">Buyer Intelligence</div>
-          <div class="section-subtitle">Sinyal berbasis lokasi &amp; preferensi pengiriman dari listing aktif (bukan data buyer eBay langsung — eBay tidak membuka data ini ke seller lain).</div>
+          <div class="section-subtitle">Location-based signals &amp; shipping preferences from active listings (not direct eBay buyer data — eBay does not expose this to other sellers).</div>
           <div id="buyerBody"></div>
         </section>
 
         <!-- ============ KEYWORD ============ -->
         <section data-content="keyword">
           <div class="section-title">Keyword Intelligence</div>
-          <div class="section-subtitle">Dihitung dari frekuensi kata pada judul listing aktif yang benar-benar muncul di eBay.</div>
+          <div class="section-subtitle">Calculated from word frequency in titles of active listings actually appearing on eBay.</div>
 
           <div class="grid grid-2">
             <div class="card module-card keyword">
@@ -171,8 +171,8 @@
               <div id="powerKeywords"></div>
             </div>
             <div class="card module-card keyword">
-              <div class="card-title">Judul Listing Teroptimasi (AI)</div>
-              <div id="optimizedTitleBlock" class="loading-state">Memuat analisis AI...</div>
+              <div class="card-title">Optimized Listing Title (AI)</div>
+              <div id="optimizedTitleBlock" class="loading-state">Loading AI analysis...</div>
             </div>
           </div>
         </section>
@@ -180,27 +180,27 @@
         <!-- ============ PRODUCT ============ -->
         <section data-content="product">
           <div class="section-title">Product Intelligence</div>
-          <div class="section-subtitle">Variasi kondisi pada listing aktif saat ini.</div>
+          <div class="section-subtitle">Condition variations across current active listings.</div>
           <div id="productBody"></div>
         </section>
 
         <!-- ============ STRATEGY ============ -->
         <section data-content="strategy">
           <div class="section-title">Strategy Center</div>
-          <div class="section-subtitle">Insight &amp; rencana aksi yang digenerate AI berdasarkan data eBay real di atas.</div>
+          <div class="section-subtitle">Insight &amp; action plans based on the live eBay data above.</div>
 
           <div class="card final-rec" id="finalRecCard" style="margin-bottom:16px;">
-            <div class="loading-state">Memuat rekomendasi akhir...</div>
+            <div class="loading-state">Loading final recommendation...</div>
           </div>
 
           <div class="grid grid-2">
             <div class="card">
               <div class="card-title">5 AI Insights</div>
-              <ul class="insight-list" id="insightList"><li class="loading-state">Memuat...</li></ul>
+              <ul class="insight-list" id="insightList"><li class="loading-state">Loading...</li></ul>
             </div>
             <div class="card">
               <div class="card-title">5 Action Plans</div>
-              <ul class="action-list" id="actionList"><li class="loading-state">Memuat...</li></ul>
+              <ul class="action-list" id="actionList"><li class="loading-state">Loading...</li></ul>
             </div>
           </div>
         </section>
@@ -208,33 +208,33 @@
         <!-- ============ SAVED ============ -->
         <section data-content="saved">
           <div class="section-title">Saved Products</div>
-          <div class="section-subtitle">Disimpan secara lokal di browser ini (belum sinkron antar perangkat).</div>
+          <div class="section-subtitle">Saved locally in this browser (not synced across devices).</div>
           <div class="card">
-            <div id="savedList"><div class="empty-state"><div class="emoji">📌</div>Belum ada produk disimpan.</div></div>
+            <div id="savedList"><div class="empty-state"><div class="emoji">📌</div>No saved products yet.</div></div>
           </div>
         </section>
 
         <!-- ============ REPORTS ============ -->
         <section data-content="reports">
           <div class="section-title">Reports</div>
-          <div class="section-subtitle">Export hasil analisis produk yang sedang aktif.</div>
+          <div class="section-subtitle">Export the analysis results for the currently active product.</div>
           <div class="card" style="display:flex; gap:12px; flex-wrap:wrap;">
             <button class="btn-secondary" id="exportCsvBtn">⬇️ Export CSV (Excel)</button>
             <button class="btn-secondary" id="exportPdfBtn">🖨️ Export PDF (Print)</button>
           </div>
-          <div class="banner info" style="margin-top:14px;">CSV berisi seluruh listing yang berhasil diambil dari eBay pada analisis terakhir. Export PDF menggunakan dialog print browser — pilih "Save as PDF".</div>
+          <div class="banner info" style="margin-top:14px;">The CSV contains all listings retrieved from eBay during the last analysis. PDF export uses the browser's print dialog — select "Save as PDF".</div>
         </section>
 
         <!-- ============ SETTINGS ============ -->
         <section data-content="settings">
           <div class="section-title">API Settings</div>
-          <div class="section-subtitle">Kredensial disimpan sebagai Environment Variables di Netlify (bukan di browser) demi keamanan.</div>
+          <div class="section-subtitle">Credentials are stored as Environment Variables in Netlify (not in the browser) for security.</div>
 
           <div class="card">
             <div class="api-row">
               <div>
                 <div class="api-name"><span class="status-dot unknown" id="dotEbay"></span>eBay Browse API</div>
-                <div class="api-desc">Listing aktif, harga, kompetitor, link produk asli.</div>
+                <div class="api-desc">Active listings, prices, competitors, original product links.</div>
               </div>
               <button class="btn-secondary" id="checkEbayBtn">Cek Koneksi</button>
             </div>
@@ -248,14 +248,14 @@
             <div class="api-row">
               <div>
                 <div class="api-name"><span class="status-dot unknown" id="dotScraper"></span>Scraper API (opsional)</div>
-                <div class="api-desc">Data sold/terjual untuk Demand &amp; Timing.</div>
+                <div class="api-desc">Sold/completed data for Demand &amp; Timing.</div>
               </div>
-              <button class="btn-secondary" id="checkScraperBtn">Cek Koneksi</button>
+              <button class="btn-secondary" id="checkScraperBtn">Check Connection</button>
             </div>
           </div>
 
           <div class="banner warn" style="margin-top:16px;">
-            Untuk mengisi/mengganti kunci API, buka <strong>Netlify Dashboard → Site configuration → Environment variables</strong>, bukan dari halaman ini. Ini sengaja, supaya Client Secret tidak pernah terkirim ke browser. Lihat README.md di project untuk daftar lengkap nama variabel.
+            To add or update API keys, go to <strong>Netlify Dashboard → Site configuration → Environment variables</strong>, not this page. This is intentional — Client Secrets are never sent to the browser. See README.md in the project for the full list of variable names.
           </div>
         </section>
 
