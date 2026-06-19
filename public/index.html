@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Sellore — eBay Market Intelligence Dashboard</title>
+<link rel="icon" type="image/jpeg" href="/relune.jpeg" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/style.css" />
@@ -16,7 +17,7 @@
   <!-- ===================== SIDEBAR ===================== -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
-      <div class="logo-mark">Iq</div>
+      <img src="/relune.jpeg" class="logo-mark" alt="Sellore logo" width="32" height="32" />
       <div class="brand-text">
         <span class="brand-name">Sellore</span>
         <span class="brand-sub">Market Intelligence</span>
@@ -40,7 +41,7 @@
       <li class="nav-item" data-page="settings"><span class="dot"></span> API Settings</li>
     </ul>
 
-    <div class="sidebar-footer">EbayIQ v1.0 &middot; Real-time data via eBay Browse API</div>
+    <div class="sidebar-footer">Sellore v1.0 &middot; Real-time data via eBay Browse API</div>
   </aside>
 
   <!-- ===================== MAIN ===================== -->
@@ -53,17 +54,17 @@
           <div class="search-card">
             <div class="search-row">
               <div class="search-input-wrap">
-                <input type="text" id="searchInput" placeholder="Cari produk, contoh: exhaust yamaha r3, vintage levi 501, nike air jordan 1" />
+                <input type="text" id="searchInput" placeholder="Search product, e.g. exhaust yamaha r3, vintage levi 501, nike air jordan 1" />
               </div>
               <select class="select-control" id="conditionFilter">
                 <option value="ALL">Condition: All</option>
                 <option value="NEW">Condition: New</option>
-                <option value="USED">Kondisi: Bekas</option>
+                <option value="USED">Condition: Used</option>
               </select>
               <select class="select-control" id="marketplaceFilter">
                 <option value="US">Marketplace: US</option>
                 <option value="UK">Marketplace: UK</option>
-                <option value="GLOBAL">Condition: Used</option>
+                <option value="GLOBAL">Marketplace: Global</option>
               </select>
               <button class="btn-analyze" id="analyzeBtn">Analyze</button>
             </div>
@@ -84,7 +85,13 @@
       <div class="empty-state" id="emptyState">
         <div class="emoji">🔎</div>
         <div style="font-weight:600; font-size:15px; margin-bottom:4px;">No product analyzed yet</div>
-        <div>Type a product name above and click <strong>Analyze</strong>, or pick one of the Quick Suggestions.</div>
+        <div>Type a product name above and click <strong>Analyze</strong>, or pick one of the Quick Suggestions below.</div>
+        <div class="empty-chips">
+          <span class="chip" data-chip="exhaust yamaha r3">exhaust yamaha r3</span>
+          <span class="chip" data-chip="vintage levi 501">vintage levi 501</span>
+          <span class="chip" data-chip="nike air jordan 1">nike air jordan 1</span>
+          <span class="chip" data-chip="iphone 13 pro max">iphone 13 pro max</span>
+        </div>
       </div>
 
       <div id="pages" style="display:none;">
@@ -92,7 +99,7 @@
         <!-- ============ OVERVIEW ============ -->
         <section data-content="overview">
           <div class="section-title" id="overviewTitle">Dashboard Overview</div>
-          <div class="section-subtitle">Market viability summary based on real-time eBay data.</div>
+          <div class="section-subtitle">Market viability summary based on real-time eBay data, powered by AI analysis.</div>
 
           <div class="grid grid-3" id="scoreGrid"></div>
 
@@ -111,7 +118,7 @@
         <!-- ============ PRICING ============ -->
         <section data-content="pricing">
           <div class="section-title">Pricing Intelligence</div>
-          <div class="section-subtitle">Calculated from asking prices on ACTIVE eBay listings (not sold prices).</div>
+          <div class="section-subtitle">Calculated from asking prices on active eBay listings (not sold prices — eBay does not expose sold pricing via public API).</div>
 
           <div class="kpi-row" id="pricingKpis"></div>
 
@@ -130,24 +137,24 @@
         <!-- ============ DEMAND ============ -->
         <section data-content="demand">
           <div class="section-title">Demand &amp; Timing</div>
-          <div class="section-subtitle">Sold/completed data requires a third-party Scraper API (eBay does not provide an official API for this).</div>
+          <div class="section-subtitle">Sold/completed listing data requires a third-party Scraper API. eBay's official Finding API was decommissioned in February 2025.</div>
           <div id="demandBody"></div>
         </section>
 
         <!-- ============ COMPETITION ============ -->
         <section data-content="competition">
           <div class="section-title">Competition Intelligence</div>
-          <div class="section-subtitle">How dense &amp; concentrated this market is, based on sellers in active listings.</div>
+          <div class="section-subtitle">Market density and concentration, based on sellers in active listings.</div>
 
           <div class="kpi-row" id="competitionKpis"></div>
 
           <div class="grid grid-2">
             <div class="card module-card competition">
-              <div class="card-title">Top Sellers (by number of active listings)</div>
+              <div class="card-title">Top Sellers by Active Listing Count</div>
               <div id="topSellersList"></div>
             </div>
             <div class="card module-card competition">
-              <div class="card-title">Entry Barrier Assessment</div>
+              <div class="card-title">Entry Barrier Assessment (AI)</div>
               <div id="entryBarrierBlock" class="loading-state">Loading AI analysis...</div>
             </div>
           </div>
@@ -156,14 +163,14 @@
         <!-- ============ BUYER ============ -->
         <section data-content="buyer">
           <div class="section-title">Buyer Intelligence</div>
-          <div class="section-subtitle">Location-based signals &amp; shipping preferences from active listings (not direct eBay buyer data — eBay does not expose this to other sellers).</div>
+          <div class="section-subtitle">Location-based signals from active listings. Note: eBay does not expose buyer location data to other sellers via public API — what's shown is seller location as a market proxy.</div>
           <div id="buyerBody"></div>
         </section>
 
         <!-- ============ KEYWORD ============ -->
         <section data-content="keyword">
           <div class="section-title">Keyword Intelligence</div>
-          <div class="section-subtitle">Calculated from word frequency in titles of active listings actually appearing on eBay.</div>
+          <div class="section-subtitle">Word frequency analysis extracted from titles of real active listings on eBay right now.</div>
 
           <div class="grid grid-2">
             <div class="card module-card keyword">
@@ -171,7 +178,7 @@
               <div id="powerKeywords"></div>
             </div>
             <div class="card module-card keyword">
-              <div class="card-title">Optimized Listing Title (AI)</div>
+              <div class="card-title">AI-Optimized Listing Title</div>
               <div id="optimizedTitleBlock" class="loading-state">Loading AI analysis...</div>
             </div>
           </div>
@@ -180,14 +187,14 @@
         <!-- ============ PRODUCT ============ -->
         <section data-content="product">
           <div class="section-title">Product Intelligence</div>
-          <div class="section-subtitle">Condition variations across current active listings.</div>
+          <div class="section-subtitle">Condition breakdown across current active listings.</div>
           <div id="productBody"></div>
         </section>
 
         <!-- ============ STRATEGY ============ -->
         <section data-content="strategy">
           <div class="section-title">Strategy Center</div>
-          <div class="section-subtitle">Insight &amp; action plans based on the live eBay data above.</div>
+          <div class="section-subtitle">AI-generated insights and action plans based on the live eBay data above.</div>
 
           <div class="card final-rec" id="finalRecCard" style="margin-bottom:16px;">
             <div class="loading-state">Loading final recommendation...</div>
@@ -208,7 +215,7 @@
         <!-- ============ SAVED ============ -->
         <section data-content="saved">
           <div class="section-title">Saved Products</div>
-          <div class="section-subtitle">Saved locally in this browser (not synced across devices).</div>
+          <div class="section-subtitle">Saved locally in this browser. Not synced across devices.</div>
           <div class="card">
             <div id="savedList"><div class="empty-state"><div class="emoji">📌</div>No saved products yet.</div></div>
           </div>
@@ -217,45 +224,45 @@
         <!-- ============ REPORTS ============ -->
         <section data-content="reports">
           <div class="section-title">Reports</div>
-          <div class="section-subtitle">Export the analysis results for the currently active product.</div>
+          <div class="section-subtitle">Export analysis results for the current product.</div>
           <div class="card" style="display:flex; gap:12px; flex-wrap:wrap;">
             <button class="btn-secondary" id="exportCsvBtn">⬇️ Export CSV (Excel)</button>
             <button class="btn-secondary" id="exportPdfBtn">🖨️ Export PDF (Print)</button>
           </div>
-          <div class="banner info" style="margin-top:14px;">The CSV contains all listings retrieved from eBay during the last analysis. PDF export uses the browser's print dialog — select "Save as PDF".</div>
+          <div class="banner info" style="margin-top:14px;">The CSV contains all listings retrieved from eBay in the last analysis. PDF export uses your browser's print dialog — select "Save as PDF".</div>
         </section>
 
         <!-- ============ SETTINGS ============ -->
         <section data-content="settings">
           <div class="section-title">API Settings</div>
-          <div class="section-subtitle">Credentials are stored as Environment Variables in Netlify (not in the browser) for security.</div>
+          <div class="section-subtitle">Credentials are stored as Environment Variables in Netlify — never in the browser.</div>
 
           <div class="card">
             <div class="api-row">
               <div>
                 <div class="api-name"><span class="status-dot unknown" id="dotEbay"></span>eBay Browse API</div>
-                <div class="api-desc">Active listings, prices, competitors, original product links.</div>
+                <div class="api-desc">Active listings, prices, competitors, and direct product links.</div>
               </div>
-              <button class="btn-secondary" id="checkEbayBtn">Cek Koneksi</button>
+              <button class="btn-secondary" id="checkEbayBtn">Test Connection</button>
             </div>
             <div class="api-row">
               <div>
                 <div class="api-name"><span class="status-dot unknown" id="dotDeepseek"></span>DeepSeek AI</div>
-                <div class="api-desc">AI Insight &amp; Strategy Center.</div>
+                <div class="api-desc">AI Insight &amp; Strategy Center analysis.</div>
               </div>
-              <button class="btn-secondary" id="checkDeepseekBtn">Cek Koneksi</button>
+              <button class="btn-secondary" id="checkDeepseekBtn">Test Connection</button>
             </div>
             <div class="api-row">
               <div>
-                <div class="api-name"><span class="status-dot unknown" id="dotScraper"></span>Scraper API (opsional)</div>
-                <div class="api-desc">Sold/completed data for Demand &amp; Timing.</div>
+                <div class="api-name"><span class="status-dot unknown" id="dotScraper"></span>Scraper API <span class="tag gray" style="margin-left:6px;">Optional</span></div>
+                <div class="api-desc">Sold/completed listing data for Demand &amp; Timing module.</div>
               </div>
-              <button class="btn-secondary" id="checkScraperBtn">Check Connection</button>
+              <button class="btn-secondary" id="checkScraperBtn">Test Connection</button>
             </div>
           </div>
 
           <div class="banner warn" style="margin-top:16px;">
-            To add or update API keys, go to <strong>Netlify Dashboard → Site configuration → Environment variables</strong>, not this page. This is intentional — Client Secrets are never sent to the browser. See README.md in the project for the full list of variable names.
+            To add or update API keys, go to <strong>Netlify Dashboard → Site configuration → Environment variables</strong>. Client secrets are never sent to the browser. See README.md for the full list of variable names.
           </div>
         </section>
 
