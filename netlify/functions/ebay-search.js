@@ -1,16 +1,15 @@
 // netlify/functions/ebay-search.js
 //
-// GET /api/ebay-search?q=<nama produk>&condition=ALL|NEW|USED&marketplace=US|UK|GLOBAL
+// GET /api/ebay-search?q=<product name>&condition=ALL|NEW|USED&marketplace=US|UK|GLOBAL
 //
-// Fungsi ini memanggil eBay Browse API (data listing AKTIF, real-time, resmi).
-// Tidak ada bagian yang perlu diganti di file ini -- cukup pastikan
-// EBAY_CLIENT_ID & EBAY_CLIENT_SECRET sudah diisi di Environment Variables
-// Netlify (lihat README.md).
+// This function calls the eBay Browse API (ACTIVE listing data, real-time, official).
+// Nothing needs to be changed here — just make sure EBAY_CLIENT_ID & EBAY_CLIENT_SECRET
+// are set in Netlify Environment Variables (see README.md).
 //
-// PENTING (baca README): eBay TIDAK menyediakan API resmi untuk data
-// "sold/terjual". Browse API hanya memberi data listing yang sedang aktif
-// dijual. Semua angka pada respons fungsi ini (avgPrice, histogram, dst)
-// dihitung dari ASKING PRICE listing aktif, bukan harga jual final.
+// IMPORTANT (read README): eBay does NOT provide an official API for "sold" data.
+// The Browse API only returns data for currently active listings.
+// All figures in this function's response (avgPrice, histogram, etc.) are calculated
+// from ASKING PRICES of active listings, NOT final sold prices.
 
 let cachedToken = null;
 let cachedTokenExpiry = 0;
@@ -18,7 +17,7 @@ let cachedTokenExpiry = 0;
 async function getAppToken() {
   const now = Date.now();
   if (cachedToken && now < cachedTokenExpiry - 60000) {
-    return cachedToken; // masih valid, hemat 1 API call
+    return cachedToken; // still valid, saves an API call
   }
 
   const clientId = process.env.EBAY_CLIENT_ID;
@@ -26,7 +25,7 @@ async function getAppToken() {
 
   if (!clientId || !clientSecret) {
     throw new Error(
-      'EBAY_CLIENT_ID / EBAY_CLIENT_SECRET belum diisi. Buka Netlify Dashboard -> Site configuration -> Environment variables.'
+      'EBAY_CLIENT_ID / EBAY_CLIENT_SECRET not set. Go to Netlify Dashboard -> Site configuration -> Environment variables.'
     );
   }
 
@@ -43,7 +42,7 @@ async function getAppToken() {
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`Gagal mengambil token eBay (status ${res.status}): ${errText}`);
+    throw new Error(`Failed to fetch eBay token (status ${res.status}): ${errText}`);
   }
 
   const data = await res.json();
@@ -58,7 +57,7 @@ const MARKETPLACE_MAP = {
   GLOBAL: ['EBAY_US', 'EBAY_GB', 'EBAY_DE'],
 };
 
-// Mapping eBay condition ID resmi: 1000=New, 3000=Used
+// Official eBay condition IDs: 1000=New, 3000=Used
 const CONDITION_MAP = {
   NEW: '1000',
   USED: '3000',
@@ -83,7 +82,7 @@ async function searchOneMarketplace(token, marketplaceId, query, conditionId) {
   );
 
   if (!res.ok) {
-    // Untuk mode GLOBAL: 1 marketplace gagal tidak boleh menggagalkan semuanya.
+    // In GLOBAL mode: one marketplace failing should not fail everything.
     return [];
   }
 
@@ -140,7 +139,7 @@ function buildStats(items) {
     ? sellers.slice(0, 3).reduce((acc, s) => acc + s.count, 0) / items.length
     : 0;
 
-  // Keyword Intelligence dasar: frekuensi kata dari judul listing REAL.
+  // Basic Keyword Intelligence: word frequency from REAL listing titles.
   const stopwords = new Set([
     'the', 'and', 'for', 'with', 'new', 'used', 'a', 'an', 'of', 'to', 'in', 'on', 'is', 'lot', 'set',
   ]);
@@ -181,7 +180,10 @@ exports.handler = async function (event) {
     const marketplace = (params.marketplace || 'US').toUpperCase();
 
     if (!query) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Parameter q (nama produk) wajib diisi.' }) };
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'Parameter q (product name) is required.' }),
+      };
     }
 
     const token = await getAppToken();
@@ -215,7 +217,7 @@ exports.handler = async function (event) {
         feedbackPercentage: i.seller?.feedbackPercentage,
       },
       image: i.image?.imageUrl,
-      itemWebUrl: i.itemWebUrl, // <- link asli ke produk di eBay (dipakai frontend utk redirect saat diklik)
+      itemWebUrl: i.itemWebUrl, // direct link to the product on eBay (used by frontend to open on click)
       itemLocationCountry: i.itemLocation?.country,
       shippingCost: i.shippingOptions?.[0]?.shippingCost?.value ?? null,
     }));
@@ -226,6 +228,10 @@ exports.handler = async function (event) {
       body: JSON.stringify({ query, condition, marketplace, stats, listings }),
     };
   } catch (err) {
-    return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: err.message }) };
+    return {
+      statusCode: 500,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: err.message }),
+    };
   }
 };
