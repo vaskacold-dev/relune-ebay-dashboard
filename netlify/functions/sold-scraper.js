@@ -1,42 +1,40 @@
 // netlify/functions/sold-scraper.js
 //
-// GET /api/sold-scraper?q=<nama produk>
+// GET /api/sold-scraper?q=<product name>
 //
-// FUNGSI INI OPSIONAL. eBay TIDAK punya API resmi untuk data sold/terjual
-// (Finding API yang dulu menyediakan ini sudah di-decommission per Feb 2025).
-// Fungsi ini mengambil data sold dengan cara: menyuruh scraper API pihak
-// ketiga membuka halaman pencarian "sold" di ebay.com, lalu kita parsing
-// HTML-nya. Karena ini scraping, SELECTOR CSS BISA RUSAK kapan saja kalau
-// eBay mengubah tampilan situsnya -- itu risiko yang melekat pada scraping,
-// bukan pada kode ini.
+// THIS FUNCTION IS OPTIONAL. eBay does NOT have an official API for sold/completed
+// data (the Finding API that previously provided this was decommissioned in Feb 2025).
+// This function retrieves sold data by: instructing a third-party scraper API to open
+// the "sold" search page on ebay.com, then parsing the HTML. Because this is scraping,
+// CSS SELECTORS CAN BREAK at any time if eBay changes their site layout — that's an
+// inherent risk of scraping, not a bug in this code.
 //
 // ======================================================================
-// GANTI BAGIAN INI sesuai provider scraper API yang Anda pakai.
-// Pola di bawah ini contoh untuk ScraperAPI (https://www.scraperapi.com),
-// formatnya: GET https://api.scraperapi.com?api_key=KEY&url=TARGET_URL
+// REPLACE THIS SECTION to match whichever scraper API provider you use.
+// The pattern below is an example for ScraperAPI (https://www.scraperapi.com):
+// GET https://api.scraperapi.com?api_key=KEY&url=TARGET_URL
 //
-// Provider lain pakai parameter berbeda, contoh:
+// Other providers use different parameters, for example:
 //   - ScrapingBee : https://app.scrapingbee.com/api/v1/?api_key=KEY&url=TARGET_URL
 //   - ZenRows     : https://api.zenrows.com/v1/?apikey=KEY&url=TARGET_URL
 //   - Scrapingdog : https://api.scrapingdog.com/scrape?api_key=KEY&url=TARGET_URL
-// Cek dokumentasi provider Anda, lalu sesuaikan fungsi di bawah ini.
+// Check your provider's documentation, then update the function below accordingly.
 // ======================================================================
 function buildScraperRequestUrl(targetUrl) {
   const apiKey = process.env.SCRAPER_API_KEY;
-  // --- GANTI BARIS INI SESUAI PROVIDER ANDA ---
-  // country_code=us memaksa ScraperAPI memakai IP dari Amerika Serikat, supaya
-  // eBay selalu mengembalikan halaman versi US (bahasa Inggris, mata uang USD).
-  // Tanpa ini, ScraperAPI bisa memakai IP dari negara mana pun secara acak,
-  // dan eBay akan menampilkan versi lokal negara itu (contoh: bahasa Portugis
-  // + mata uang R$ kalau IP terdeteksi dari Brasil) -- yang membuat parsing
-  // harga di bawah jadi gagal karena formatnya berbeda dari yang diharapkan.
+  // --- REPLACE THIS LINE TO MATCH YOUR PROVIDER ---
+  // country_code=us forces ScraperAPI to use a US IP address, so eBay always
+  // returns the US version of the page (English language, USD currency).
+  // Without this, ScraperAPI may use an IP from any country, and eBay will
+  // display that country's local version (e.g. Portuguese + BRL if IP is from Brazil),
+  // which would break the price parsing below since the format differs.
   return `https://api.scraperapi.com?api_key=${apiKey}&country_code=us&url=${encodeURIComponent(targetUrl)}`;
 }
 
 exports.handler = async function (event) {
   try {
     const apiKey = process.env.SCRAPER_API_KEY;
-    console.log('[sold-scraper] apiKey terbaca?', apiKey ? `YA (panjang ${apiKey.length} karakter)` : 'TIDAK (undefined/kosong)');
+    console.log('[sold-scraper] apiKey found?', apiKey ? `YES (length: ${apiKey.length})` : 'NO (undefined/empty)');
 
     if (!apiKey) {
       return {
@@ -45,7 +43,7 @@ exports.handler = async function (event) {
         body: JSON.stringify({
           available: false,
           message:
-            'SCRAPER_API_KEY belum diisi di Netlify Environment Variables. Fitur Demand & Timing (data sold) tidak aktif.',
+            'SCRAPER_API_KEY is not set in Netlify Environment Variables. Demand & Timing (sold data) feature is disabled.',
         }),
       };
     }
@@ -53,33 +51,33 @@ exports.handler = async function (event) {
     const query = (event.queryStringParameters?.q || '').trim();
     console.log('[sold-scraper] query:', query);
     if (!query) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Parameter q wajib diisi.' }) };
+      return { statusCode: 400, body: JSON.stringify({ error: 'Parameter q is required.' }) };
     }
 
     const targetUrl = `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(query)}&LH_Sold=1&LH_Complete=1`;
     const scraperUrl = buildScraperRequestUrl(targetUrl);
-    console.log('[sold-scraper] memanggil scraper untuk targetUrl:', targetUrl);
+    console.log('[sold-scraper] calling scraper for targetUrl:', targetUrl);
 
     const res = await fetch(scraperUrl);
-    console.log('[sold-scraper] status response dari ScraperAPI:', res.status);
+    console.log('[sold-scraper] ScraperAPI response status:', res.status);
 
     if (!res.ok) {
       const errBody = await res.text();
-      console.log('[sold-scraper] body error dari ScraperAPI:', errBody.slice(0, 500));
-      throw new Error(`Scraper API merespons error (status ${res.status}). Cek kuota/API key scraper Anda.`);
+      console.log('[sold-scraper] ScraperAPI error body:', errBody.slice(0, 500));
+      throw new Error(`Scraper API returned error (status ${res.status}). Check your scraper quota/API key.`);
     }
     const html = await res.text();
-    console.log('[sold-scraper] panjang HTML diterima:', html.length, 'karakter');
-    console.log('[sold-scraper] cuplikan awal HTML:', html.slice(0, 300));
+    console.log('[sold-scraper] HTML length received:', html.length, 'characters');
+    console.log('[sold-scraper] HTML preview:', html.slice(0, 300));
 
-    // Catatan: sebelumnya parsing pakai library "cheerio", tapi cheerio versi
-    // terbaru butuh global "File" API yang tidak selalu tersedia di runtime
-    // serverless Netlify -- menyebabkan error "File is not defined". Untuk
-    // menghindari dependency itu sepenuhnya, kita parsing harga langsung dari
-    // HTML mentah pakai regex. Ini lebih ringan dan tidak rentan masalah versi.
+    // Note: previously parsed with "cheerio", but newer versions of cheerio require
+    // a global "File" API not always available in Netlify's serverless runtime,
+    // causing "File is not defined" errors. To avoid that dependency entirely,
+    // we parse prices directly from raw HTML using regex. Lighter and not vulnerable
+    // to version issues.
     const prices = [];
-    // Pola umum di markup hasil pencarian eBay: class "s-item__price" diikuti
-    // teks harga dalam format "$123.45" (kadang ada koma untuk ribuan).
+    // Common pattern in eBay search result markup: class "s-item__price" followed
+    // by price text in format "$123.45" (sometimes with commas for thousands).
     const priceBlockRegex = /s-item__price[^>]*>([^<]*)</g;
     let match;
     while ((match = priceBlockRegex.exec(html)) !== null) {
@@ -88,13 +86,12 @@ exports.handler = async function (event) {
       const value = parseFloat(cleaned);
       if (!Number.isNaN(value) && value > 0) prices.push(value);
     }
-    console.log('[sold-scraper] jumlah harga ditemukan dengan regex s-item__price:', prices.length);
+    console.log('[sold-scraper] prices found with s-item__price regex:', prices.length);
 
-    // FALLBACK: kalau selector class di atas tidak menemukan apa pun (tanda
-    // eBay sudah mengubah nama class CSS-nya lagi), coba cari langsung pola
-    // umum harga listing dalam format "$123.45" atau "$1,234.56" di body HTML.
-    // Ini kurang presisi (bisa menangkap harga shipping/filter juga), tapi
-    // jadi fallback yang masih lebih baik daripada gagal total.
+    // FALLBACK: if the class selector above finds nothing (sign that eBay changed
+    // their CSS class names again), try looking directly for generic price patterns
+    // in format "$123.45" or "$1,234.56" anywhere in the HTML body.
+    // Less precise (may catch shipping/filter prices too), but better than failing.
     if (!prices.length) {
       const genericPriceRegex = />\s*\$\s?([0-9][0-9,]*\.[0-9]{2})\s*</g;
       let gMatch;
@@ -103,14 +100,12 @@ exports.handler = async function (event) {
         const value = parseFloat(cleaned);
         if (!Number.isNaN(value) && value > 0) prices.push(value);
       }
-      console.log('[sold-scraper] fallback: jumlah harga ditemukan dengan pola generik $xx.xx:', prices.length);
+      console.log('[sold-scraper] fallback: prices found with generic $xx.xx pattern:', prices.length);
     }
 
-    // DIAGNOSTIK SEMENTARA: kalau 0 harga ketemu, tunjukkan cuplikan HTML di
-    // sekitar BEBERAPA kemunculan simbol dollar ($) -- kemunculan paling awal
-    // biasanya masih bagian filter sidebar ("Under $15.00" dst), bukan listing
-    // produk sungguhan. Kita ambil kemunculan ke-8 s.d. ke-12 supaya kemungkinan
-    // besar sudah melewati filter dan masuk ke area listing produk asli.
+    // TEMPORARY DIAGNOSTICS: if 0 prices found, show HTML snippets around dollar signs.
+    // Early occurrences are usually sidebar filters ("Under $15.00" etc.), not real listings.
+    // We grab occurrences 8-12 which are more likely to be in the actual product listing area.
     if (!prices.length) {
       const lowerHtml = html.toLowerCase();
 
@@ -122,17 +117,21 @@ exports.handler = async function (event) {
         dollarIndices.push(idx);
         searchPos = idx + 1;
       }
-      console.log('[sold-scraper] DIAGNOSTIK total kemunculan $ ditemukan (maks 15 dicatat):', dollarIndices.length);
+      console.log('[sold-scraper] DIAGNOSTIC: total $ occurrences found (max 15 logged):', dollarIndices.length);
 
-      // Tampilkan cuplikan di sekitar kemunculan ke-8 s.d. ke-12 (index 7-11)
+      // Show snippets around occurrences 8-12 (index 7-11)
       for (let i = 7; i <= 11 && i < dollarIndices.length; i++) {
         const idx = dollarIndices[i];
-        console.log(`[sold-scraper] DIAGNOSTIK cuplikan sekitar $ ke-${i + 1}:`, html.slice(Math.max(0, idx - 250), idx + 50));
+        console.log(`[sold-scraper] DIAGNOSTIC snippet around $ #${i + 1}:`, html.slice(Math.max(0, idx - 250), idx + 50));
       }
 
-      // Cek juga indikasi captcha/blocking dari eBay
-      if (lowerHtml.includes('captcha') || lowerHtml.includes('pardon our interruption') || lowerHtml.includes('are you a human')) {
-        console.log('[sold-scraper] DIAGNOSTIK: terindikasi halaman CAPTCHA/blokir dari eBay, bukan halaman hasil pencarian asli.');
+      // Check for captcha/blocking signs from eBay
+      if (
+        lowerHtml.includes('captcha') ||
+        lowerHtml.includes('pardon our interruption') ||
+        lowerHtml.includes('are you a human')
+      ) {
+        console.log('[sold-scraper] DIAGNOSTIC: CAPTCHA/block page detected — not a real search results page.');
       }
     }
 
@@ -144,13 +143,13 @@ exports.handler = async function (event) {
           available: true,
           soldCount: 0,
           message:
-            'Scraper berhasil dipanggil tapi 0 harga terbaca. Kemungkinan struktur HTML eBay berubah -- cek/update selector CSS di sold-scraper.js, atau cek apakah scraper API mengembalikan HTML yang benar.',
+            'Scraper was called successfully but 0 prices were parsed. eBay may have changed their HTML structure — check/update the CSS selector in sold-scraper.js, or verify the scraper API is returning valid HTML.',
         }),
       };
     }
 
     const avgSold = prices.reduce((a, b) => a + b, 0) / prices.length;
-    console.log('[sold-scraper] SUKSES, avgSoldPrice:', avgSold.toFixed(2));
+    console.log('[sold-scraper] SUCCESS, avgSoldPrice:', avgSold.toFixed(2));
 
     return {
       statusCode: 200,
@@ -161,12 +160,15 @@ exports.handler = async function (event) {
         avgSoldPrice: Number(avgSold.toFixed(2)),
         minSoldPrice: Math.min(...prices),
         maxSoldPrice: Math.max(...prices),
-        note:
-          'Ini snapshot sold listings saat ini (bukan tren historis 12 bulan). Untuk grafik musiman jangka panjang, data ini perlu disimpan ke database setiap hari/minggu -- lihat README bagian "Pengembangan Lanjutan".',
+        note: 'This is a snapshot of current sold listings (not a 12-month historical trend). For long-term seasonal charts, this data would need to be saved to a database daily/weekly — see README under "Further Development".',
       }),
     };
   } catch (err) {
-    console.log('[sold-scraper] ERROR tertangkap:', err.message);
-    return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: err.message }) };
+    console.log('[sold-scraper] ERROR caught:', err.message);
+    return {
+      statusCode: 500,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: err.message }),
+    };
   }
 };
