@@ -1,20 +1,21 @@
 // netlify/functions/ai-insight.js
 //
 // POST /api/ai-insight
-// Body: { query: string, stats: <objek stats dari /api/ebay-search> }
+// Body: { query: string, stats: <stats object from /api/ebay-search> }
 //
-// Fungsi ini mengirim data REAL (stats agregat dari listing eBay aktif) ke
-// DeepSeek, lalu meminta DeepSeek menganalisis -- bukan mengarang data baru.
-// Hasilnya dipakai untuk mengisi Dashboard Overview & Strategy Center.
+// This function sends REAL data (aggregated stats from active eBay listings)
+// to DeepSeek, then asks DeepSeek to analyze it — not to fabricate new data.
+// The result is used to populate the Dashboard Overview & Strategy Center.
 //
 // ============================================================
-// GANTI BAGIAN INI kalau mau pindah provider AI (OpenAI, Claude, dll):
-// cukup ganti AI_BASE_URL, MODEL, dan header Authorization sesuai dokumentasi
-// provider tersebut -- body request (messages, response_format) kemungkinan
-// besar formatnya sama karena kebanyakan provider kompatibel format OpenAI.
+// TO SWITCH AI PROVIDER (OpenAI, Claude, etc.):
+// Just replace AI_BASE_URL, MODEL, and the Authorization header to match
+// the new provider's documentation. The request body format (messages,
+// response_format) is likely identical since most providers follow the
+// OpenAI-compatible format.
 // ============================================================
 const AI_BASE_URL = 'https://api.deepseek.com/chat/completions';
-const MODEL = 'deepseek-v4-flash'; // ganti 'deepseek-v4-pro' untuk kualitas analisis lebih tinggi (lebih mahal)
+const MODEL = 'deepseek-v4-flash'; // use 'deepseek-v4-pro' for higher quality analysis (costs more)
 
 exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') {
@@ -24,23 +25,26 @@ exports.handler = async function (event) {
   try {
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) {
-      throw new Error('DEEPSEEK_API_KEY belum diisi di Netlify Environment Variables.');
+      throw new Error('DEEPSEEK_API_KEY is not set in Netlify Environment Variables.');
     }
 
     const { query, stats } = JSON.parse(event.body || '{}');
     if (!stats) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'stats wajib dikirim (hasil dari /api/ebay-search).' }) };
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'stats is required (result from /api/ebay-search).' }),
+      };
     }
 
     const systemPrompt =
-      'Anda adalah analis riset pasar eBay yang berpengalaman. Anda diberi data AGREGAT REAL dari listing aktif eBay (bukan data rekaan). Tugas Anda HANYA menganalisis data yang diberikan, jangan mengarang angka baru yang tidak ada dasarnya. Jawab HANYA dalam JSON valid, tanpa markdown, tanpa teks pembuka.';
+      'You are an experienced eBay market research analyst. You are given REAL AGGREGATE data from active eBay listings (not fabricated data). Your task is ONLY to analyze the provided data — do not invent numbers that have no basis in the data. Respond ONLY in valid JSON, no markdown, no preamble.';
 
-    const userPrompt = `Produk yang dicari: "${query}"
+    const userPrompt = `Product searched: "${query}"
 
-Data agregat REAL dari eBay (listing aktif saat ini):
+REAL aggregate data from eBay (current active listings):
 ${JSON.stringify(stats, null, 2)}
 
-Berdasarkan data di atas, hasilkan JSON dengan struktur PERSIS seperti ini:
+Based on the data above, generate JSON with EXACTLY this structure:
 {
   "opportunityScore": 0,
   "entryBarrierScore": 0,
@@ -48,17 +52,17 @@ Berdasarkan data di atas, hasilkan JSON dengan struktur PERSIS seperti ini:
   "demandScore": 0,
   "profitabilityScore": 0,
   "growthPotentialScore": 0,
-  "marketSummary": "2-3 kalimat ringkasan pasar",
-  "productHealthIndicator": "Sehat | Waspada | Berisiko",
-  "recommendedAction": "1 kalimat aksi konkret",
+  "marketSummary": "2-3 sentence market summary",
+  "productHealthIndicator": "Healthy | Caution | Risky",
+  "recommendedAction": "1 sentence concrete action",
   "insights": ["insight 1", "insight 2", "insight 3", "insight 4", "insight 5"],
-  "actionPlans": ["rencana 1", "rencana 2", "rencana 3", "rencana 4", "rencana 5"],
+  "actionPlans": ["plan 1", "plan 2", "plan 3", "plan 4", "plan 5"],
   "finalRecommendation": "Buy | Test Small | Avoid",
-  "finalRecommendationReason": "2-3 kalimat alasan",
-  "optimizedTitle": "contoh judul listing eBay yang dioptimasi, maksimal 80 karakter"
+  "finalRecommendationReason": "2-3 sentence reason",
+  "optimizedTitle": "example optimized eBay listing title, max 80 characters"
 }
 
-Semua skor dalam skala 0-100. Pastikan competitionScore & entryBarrierScore konsisten dengan top3SellerShare dan uniqueSellers pada data (top3SellerShare tinggi + uniqueSellers rendah = pasar dikuasai sedikit seller = entry barrier & competition tinggi). Gunakan Bahasa Indonesia untuk semua teks.`;
+All scores on a scale of 0-100. Ensure competitionScore & entryBarrierScore are consistent with top3SellerShare and uniqueSellers in the data (high top3SellerShare + low uniqueSellers = market dominated by few sellers = high entry barrier & competition). Use English for all text fields.`;
 
     const res = await fetch(AI_BASE_URL, {
       method: 'POST',
@@ -92,6 +96,10 @@ Semua skor dalam skala 0-100. Pastikan competitionScore & entryBarrierScore kons
       body: JSON.stringify(parsed),
     };
   } catch (err) {
-    return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: err.message }) };
+    return {
+      statusCode: 500,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: err.message }),
+    };
   }
 };
