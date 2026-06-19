@@ -1,31 +1,31 @@
 // netlify/functions/ebay-account-deletion.js
 //
-// Endpoint WAJIB untuk eBay "Marketplace Account Deletion / Closure Notifications".
-// Ini bukan fitur dashboard -- ini syarat compliance dari eBay Developer Program
-// agar API key (Production Keyset) kamu berstatus "Compliant" dan bisa dipakai.
+// REQUIRED endpoint for eBay "Marketplace Account Deletion / Closure Notifications".
+// This is not a dashboard feature — it is a compliance requirement from the eBay
+// Developer Program so your API key (Production Keyset) stays "Compliant" and usable.
 //
-// Cara kerja (sesuai spesifikasi resmi eBay):
-//   1) Saat kamu menyimpan endpoint ini di eBay Developer Portal, eBay akan
-//      langsung kirim GET request berisi ?challenge_code=xxxx untuk verifikasi.
-//      Endpoint harus balas JSON { challengeResponse: <hash> } dengan hash =
-//      SHA-256( challengeCode + verificationToken + endpointURL ), dalam hex.
-//   2) Setelah lolos verifikasi, setiap kali ada user yang request hapus akun
-//      eBay mereka, eBay akan kirim POST ke endpoint ini. Kamu WAJIB balas
-//      status 200 dalam waktu singkat (eBay tidak peduli isi body-nya, yang
-//      penting status 200 -- kalau gagal terus, eBay akan menandai endpoint
-//      "down" dan mengirim email peringatan ke alamat yang kamu daftarkan).
+// How it works (per eBay's official spec):
+//   1) When you save this endpoint in the eBay Developer Portal, eBay immediately
+//      sends a GET request with ?challenge_code=xxxx for verification.
+//      The endpoint must respond with JSON { challengeResponse: <hash> } where:
+//      hash = SHA-256( challengeCode + verificationToken + endpointURL ), in hex.
+//   2) After passing verification, whenever an eBay user requests account deletion,
+//      eBay sends a POST to this endpoint. You MUST respond with status 200 quickly
+//      (eBay doesn't care about the response body — just the 200 status. Repeated
+//      failures will cause eBay to mark the endpoint "down" and send warning emails
+//      to the address registered in your developer account).
 //
-// ENV VARS yang dibutuhkan (isi di Netlify -> Site configuration -> Environment variables):
-//   EBAY_VERIFICATION_TOKEN  -> string bebas buatanmu sendiri, 32-80 karakter,
-//                               huruf/angka/underscore/hyphen. HARUS SAMA PERSIS
-//                               dengan yang kamu ketik di field "Verification token"
-//                               pada form eBay Developer Portal (lihat screenshot kamu).
+// Required ENV VARS (set in Netlify → Site configuration → Environment variables):
+//   EBAY_VERIFICATION_TOKEN  -> a string you create yourself, 32-80 characters,
+//                               letters/numbers/underscores/hyphens. MUST EXACTLY MATCH
+//                               what you enter in the "Verification token" field on the
+//                               eBay Developer Portal form.
 //
-// URL endpoint final (isi di field "Marketplace account deletion notification endpoint"):
-//   https://<nama-site-netlify-kamu>.netlify.app/api/ebay-account-deletion
+// Final endpoint URL (enter in "Marketplace account deletion notification endpoint"):
+//   https://<your-netlify-site-name>.netlify.app/api/ebay-account-deletion
 //
-// Dashboard utama TIDAK terpengaruh apa pun oleh file ini -- ini cuma syarat
-// administratif supaya eBay API key-mu aktif penuh (status compliant).
+// The main dashboard is NOT affected by this file in any way — this is purely an
+// administrative requirement to keep your eBay API key fully active (compliant status).
 
 const crypto = require('crypto');
 
@@ -42,7 +42,7 @@ exports.handler = async function (event) {
       return {
         statusCode: 400,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'Parameter challenge_code tidak ditemukan.' }),
+        body: JSON.stringify({ error: 'Parameter challenge_code not found.' }),
       };
     }
 
@@ -51,15 +51,15 @@ exports.handler = async function (event) {
         statusCode: 500,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          error: 'EBAY_VERIFICATION_TOKEN belum diisi di Netlify Environment Variables.',
+          error: 'EBAY_VERIFICATION_TOKEN is not set in Netlify Environment Variables.',
         }),
       };
     }
 
-    // eBay menentukan endpoint URL ini harus PERSIS sama dengan yang kamu
-    // daftarkan di Developer Portal (termasuk https://, tanpa trailing slash
-    // tambahan, tanpa query string). Set via env var ENDPOINT_URL supaya
-    // tidak perlu hardcode dan mudah diganti kalau domain berubah.
+    // eBay requires the endpoint URL to be EXACTLY the same as what you registered
+    // in the Developer Portal (including https://, no trailing slash, no query string).
+    // Set via EBAY_ENDPOINT_URL env var to avoid hardcoding and allow easy updates
+    // if the domain changes.
     const endpointUrl = process.env.EBAY_ENDPOINT_URL;
 
     if (!endpointUrl) {
@@ -67,13 +67,13 @@ exports.handler = async function (event) {
         statusCode: 500,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          error: 'EBAY_ENDPOINT_URL belum diisi di Netlify Environment Variables (harus persis sama dengan URL yang didaftarkan di eBay Developer Portal).',
+          error: 'EBAY_ENDPOINT_URL is not set in Netlify Environment Variables (must exactly match the URL registered in eBay Developer Portal).',
         }),
       };
     }
 
-    // Urutan penggabungan WAJIB: challengeCode + verificationToken + endpoint
-    // (urutan ini ditentukan eBay, tidak boleh diubah)
+    // Concatenation order REQUIRED by eBay: challengeCode + verificationToken + endpoint
+    // (this order is defined by eBay and must not be changed)
     const hash = crypto.createHash('sha256');
     hash.update(challengeCode);
     hash.update(verificationToken);
@@ -88,21 +88,21 @@ exports.handler = async function (event) {
   }
 
   // -------------------------------------------------------------------
-  // STEP 2: Notifikasi aktual (POST request) saat user hapus akun eBay
+  // STEP 2: Actual notification (POST request) when eBay user deletes account
   // -------------------------------------------------------------------
   if (event.httpMethod === 'POST') {
     try {
       const payload = JSON.parse(event.body || '{}');
 
-      // Dashboard ini tidak menyimpan data pribadi user eBay manapun (hanya
-      // memanggil Browse API publik untuk riset pasar), jadi tidak ada data
-      // yang perlu dihapus dari sisi kita. Kita cukup log untuk jejak audit,
-      // lalu balas 200 supaya eBay menganggap notifikasi berhasil diterima.
-      console.log('Marketplace account deletion notification diterima:', JSON.stringify(payload));
+      // This dashboard does not store any personal data from any eBay user (it only
+      // calls the public Browse API for market research), so there is nothing to delete
+      // on our end. We just log for audit trail, then respond 200 so eBay considers
+      // the notification successfully received.
+      console.log('Marketplace account deletion notification received:', JSON.stringify(payload));
 
-      // Kalau di masa depan dashboard ini menyimpan data terkait user eBay
-      // tertentu (misal di database), tambahkan logika penghapusan data di sini,
-      // menggunakan payload.notification.data.username / userId.
+      // If in the future this dashboard stores data related to specific eBay users
+      // (e.g. in a database), add data deletion logic here using:
+      // payload.notification.data.username / userId
 
       return {
         statusCode: 200,
@@ -110,9 +110,9 @@ exports.handler = async function (event) {
         body: JSON.stringify({ received: true }),
       };
     } catch (err) {
-      // Tetap balas 200 -- eBay hanya butuh konfirmasi endpoint hidup,
-      // jangan sampai error parsing membuat eBay menandai endpoint "down".
-      console.error('Gagal parse payload eBay:', err.message);
+      // Still respond 200 — eBay only needs confirmation the endpoint is alive.
+      // Don't let a parse error cause eBay to mark the endpoint "down".
+      console.error('Failed to parse eBay payload:', err.message);
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -124,6 +124,6 @@ exports.handler = async function (event) {
   return {
     statusCode: 405,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ error: 'Method not allowed. Gunakan GET (verifikasi) atau POST (notifikasi).' }),
+    body: JSON.stringify({ error: 'Method not allowed. Use GET (verification) or POST (notification).' }),
   };
 };
