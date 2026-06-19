@@ -1,21 +1,24 @@
 // public/js/app.js
 //
-// Semua data di sini berasal dari hasil call ke /api/ebay-search,
-// /api/ai-insight, dan /api/sold-scraper (lihat netlify/functions/).
-// Tidak ada data dummy/acak yang sengaja ditampilkan sebagai hasil real.
+// All data here comes from /api/ebay-search, /api/ai-insight, and
+// /api/sold-scraper (see netlify/functions/). No dummy or fake data
+// is displayed as real results.
 
 const state = {
-  result: null, // hasil dari /api/ebay-search
-  ai: null,     // hasil dari /api/ai-insight
-  charts: {},   // instance Chart.js, supaya bisa di-destroy sebelum re-render
+  result: null, // response from /api/ebay-search
+  ai: null,     // response from /api/ai-insight
+  charts: {},   // Chart.js instances, destroyed before re-render
 };
 
 const qs = (id) => document.getElementById(id);
-const fmtMoney = (v, currency = 'USD') => (v == null ? '-' : `${currency === 'USD' ? '$' : currency + ' '}${v.toFixed(2)}`);
+const fmtMoney = (v, currency = 'USD') =>
+  v == null ? '-' : `${currency === 'USD' ? '$' : currency + ' '}${Number(v).toFixed(2)}`;
 
-// ===================== NAVIGASI SIDEBAR =====================
+// ===================== SIDEBAR NAVIGATION =====================
 function showPage(pageKey) {
-  document.querySelectorAll('.nav-item').forEach((el) => el.classList.toggle('active', el.dataset.page === pageKey));
+  document.querySelectorAll('.nav-item').forEach((el) =>
+    el.classList.toggle('active', el.dataset.page === pageKey)
+  );
   document.querySelectorAll('[data-content]').forEach((el) => {
     el.style.display = el.dataset.content === pageKey ? 'block' : 'none';
   });
@@ -27,8 +30,20 @@ document.querySelectorAll('.nav-item').forEach((el) => {
   el.addEventListener('click', () => showPage(el.dataset.page));
 });
 
-qs('menuToggle').addEventListener('click', () => qs('sidebar').classList.toggle('open'));
+qs('menuToggle').addEventListener('click', () =>
+  qs('sidebar').classList.toggle('open')
+);
 
+// Close sidebar when clicking outside on mobile
+document.addEventListener('click', (e) => {
+  if (window.innerWidth <= 900 && qs('sidebar').classList.contains('open')) {
+    if (!qs('sidebar').contains(e.target) && e.target !== qs('menuToggle')) {
+      qs('sidebar').classList.remove('open');
+    }
+  }
+});
+
+// Quick suggestion chips — both in topbar and empty state
 document.querySelectorAll('.chip').forEach((chip) => {
   chip.addEventListener('click', () => {
     qs('searchInput').value = chip.dataset.chip;
@@ -37,7 +52,9 @@ document.querySelectorAll('.chip').forEach((chip) => {
 });
 
 qs('analyzeBtn').addEventListener('click', runAnalysis);
-qs('searchInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') runAnalysis(); });
+qs('searchInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') runAnalysis();
+});
 
 // ===================== ANALYZE FLOW =====================
 async function runAnalysis() {
@@ -50,13 +67,18 @@ async function runAnalysis() {
   qs('emptyState').style.display = 'none';
   qs('pages').style.display = 'block';
   qs('analyzeBtn').disabled = true;
-  qs('analyzeBtn').textContent = 'Menganalisis...';
+  qs('analyzeBtn').textContent = 'Analyzing…';
   resetLoadingBlocks();
 
+  // Switch to Overview page automatically
+  showPage('overview');
+
   try {
-    const res = await fetch(`/api/ebay-search?q=${encodeURIComponent(query)}&condition=${condition}&marketplace=${marketplace}`);
+    const res = await fetch(
+      `/api/ebay-search?q=${encodeURIComponent(query)}&condition=${condition}&marketplace=${marketplace}`
+    );
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Gagal mengambil data eBay.');
+    if (!res.ok) throw new Error(data.error || 'Failed to fetch eBay data.');
 
     state.result = data;
 
@@ -71,13 +93,12 @@ async function runAnalysis() {
     renderProduct(data.listings);
     renderBuyer(data.listings);
 
-    // Strategy/Overview butuh AI -> dipanggil terpisah supaya bagian "real data"
-    // tetap muncul cepat walau AI sedang loading.
+    // AI insight is fetched separately so real data shows immediately
     fetchAIInsight(query, data.stats);
     fetchSoldData(query);
   } catch (err) {
     qs('overviewTitle').textContent = 'Dashboard Overview';
-    qs('marketSummary').innerHTML = `<div class="banner error">${err.message}</div>`;
+    qs('marketSummary').innerHTML = `<div class="banner error">⚠️ ${err.message}</div>`;
   } finally {
     qs('analyzeBtn').disabled = false;
     qs('analyzeBtn').textContent = 'Analyze';
@@ -85,22 +106,24 @@ async function runAnalysis() {
 }
 
 function showNoResults() {
-  qs('marketSummary').innerHTML = `<div class="banner warn">Tidak ada listing aktif ditemukan untuk pencarian ini. Coba kata kunci lain.</div>`;
-  ['pricingKpis', 'competitionKpis', 'topSellersList', 'powerKeywords', 'productBody', 'buyerBody'].forEach((id) => {
-    qs(id).innerHTML = '';
-  });
+  qs('marketSummary').innerHTML = `<div class="banner warn">No active listings found for this search. Try a different keyword.</div>`;
+  ['pricingKpis', 'competitionKpis', 'topSellersList', 'powerKeywords', 'productBody', 'buyerBody'].forEach(
+    (id) => { qs(id).innerHTML = ''; }
+  );
 }
 
 function resetLoadingBlocks() {
-  qs('marketSummary').innerHTML = '<div class="loading-state">Memuat analisis AI...</div>';
-  qs('healthBlock').innerHTML = '<div class="loading-state">Memuat analisis AI...</div>';
-  qs('entryBarrierBlock').innerHTML = '<div class="loading-state">Memuat analisis AI...</div>';
-  qs('optimizedTitleBlock').innerHTML = '<div class="loading-state">Memuat analisis AI...</div>';
-  qs('insightList').innerHTML = '<li class="loading-state">Memuat...</li>';
-  qs('actionList').innerHTML = '<li class="loading-state">Memuat...</li>';
-  qs('finalRecCard').innerHTML = '<div class="loading-state">Memuat rekomendasi akhir...</div>';
+  const loading = (text = 'Loading AI analysis…') =>
+    `<div class="loading-state">${text}</div>`;
+  qs('marketSummary').innerHTML = loading();
+  qs('healthBlock').innerHTML = loading();
+  qs('entryBarrierBlock').innerHTML = loading();
+  qs('optimizedTitleBlock').innerHTML = loading();
+  qs('insightList').innerHTML = `<li class="loading-state">Loading…</li>`;
+  qs('actionList').innerHTML = `<li class="loading-state">Loading…</li>`;
+  qs('finalRecCard').innerHTML = loading('Loading final recommendation…');
   qs('scoreGrid').innerHTML = '';
-  qs('demandBody').innerHTML = '<div class="loading-state">Mengecek ketersediaan data sold...</div>';
+  qs('demandBody').innerHTML = loading('Checking sold data availability…');
 }
 
 // ===================== OVERVIEW (AI) =====================
@@ -112,51 +135,72 @@ async function fetchAIInsight(query, stats) {
       body: JSON.stringify({ query, stats }),
     });
     const ai = await res.json();
-    if (!res.ok) throw new Error(ai.error || 'Gagal memuat AI insight.');
+    if (!res.ok) throw new Error(ai.error || 'Failed to load AI insight.');
 
     state.ai = ai;
     qs('overviewTitle').textContent = `Dashboard Overview — "${query}"`;
     renderScoreGrid(ai);
-    qs('marketSummary').innerHTML = `<p style="margin:0;">${ai.marketSummary}</p>`;
+
+    qs('marketSummary').innerHTML = `<p style="margin:0; line-height:1.65;">${ai.marketSummary}</p>`;
     qs('healthBlock').innerHTML = `
-      <div style="margin-bottom:10px;"><span class="tag pink">${ai.productHealthIndicator}</span></div>
-      <p style="margin:0; color:var(--text-secondary);">${ai.recommendedAction}</p>`;
-    qs('entryBarrierBlock').innerHTML = `
-      <div class="kpi-box" style="margin-bottom:10px;">
-        <div class="kpi-label">Entry Barrier Score</div>
-        <div class="kpi-value">${ai.entryBarrierScore}/100</div>
+      <div style="margin-bottom:10px;">
+        <span class="tag pink">${ai.productHealthIndicator}</span>
       </div>
-      <p style="margin:0; color:var(--text-secondary);">${ai.recommendedAction}</p>`;
-    qs('optimizedTitleBlock').innerHTML = `<p style="margin:0; font-weight:600;">"${ai.optimizedTitle}"</p>`;
+      <p style="margin:0; color:var(--text-secondary); line-height:1.6;">${ai.recommendedAction}</p>`;
+
+    qs('entryBarrierBlock').innerHTML = `
+      <div class="kpi-box" style="margin-bottom:12px; display:inline-block; min-width:160px;">
+        <div class="kpi-label">Entry Barrier Score</div>
+        <div class="kpi-value">${ai.entryBarrierScore}<span style="font-size:14px; font-weight:500; color:var(--text-muted)">/100</span></div>
+      </div>
+      <p style="margin:0; color:var(--text-secondary); line-height:1.6;">${ai.recommendedAction}</p>`;
+
+    qs('optimizedTitleBlock').innerHTML = `
+      <div style="background:var(--surface-alt); border:1px solid var(--border); border-radius:8px; padding:12px 14px;">
+        <p style="margin:0; font-weight:600; font-size:14px; line-height:1.5; color:var(--text-primary);">"${ai.optimizedTitle}"</p>
+        <p style="margin:8px 0 0; font-size:11.5px; color:var(--text-muted);">Max 80 characters · AI-optimized for eBay search</p>
+      </div>`;
 
     qs('insightList').innerHTML = (ai.insights || []).map((i) => `<li>${i}</li>`).join('');
     qs('actionList').innerHTML = (ai.actionPlans || []).map((i) => `<li>${i}</li>`).join('');
 
-    const recClass = ai.finalRecommendation === 'Buy' ? 'buy' : ai.finalRecommendation === 'Avoid' ? 'avoid' : 'test';
+    const recClass =
+      ai.finalRecommendation === 'Buy' ? 'buy' :
+      ai.finalRecommendation === 'Avoid' ? 'avoid' : 'test';
     qs('finalRecCard').innerHTML = `
       <div class="rec-badge ${recClass}">${ai.finalRecommendation}</div>
-      <p style="margin:0; color:var(--text-secondary);">${ai.finalRecommendationReason}</p>`;
+      <p style="margin:0; color:var(--text-secondary); line-height:1.65;">${ai.finalRecommendationReason}</p>`;
   } catch (err) {
-    qs('marketSummary').innerHTML = `<div class="banner error">${err.message}</div>`;
-    qs('finalRecCard').innerHTML = `<div class="banner error">${err.message}</div>`;
+    qs('marketSummary').innerHTML = `<div class="banner error">⚠️ ${err.message}</div>`;
+    qs('finalRecCard').innerHTML = `<div class="banner error">⚠️ ${err.message}</div>`;
+    qs('healthBlock').innerHTML = '';
+    qs('entryBarrierBlock').innerHTML = '';
+    qs('optimizedTitleBlock').innerHTML = '';
+    qs('insightList').innerHTML = '';
+    qs('actionList').innerHTML = '';
   }
 }
 
 function renderScoreGrid(ai) {
   const items = [
-    ['Opportunity Score', ai.opportunityScore],
-    ['Entry Barrier Score', ai.entryBarrierScore],
-    ['Competition Score', ai.competitionScore],
-    ['Demand Score', ai.demandScore],
-    ['Profitability Score', ai.profitabilityScore],
-    ['Growth Potential Score', ai.growthPotentialScore],
+    ['Opportunity Score', ai.opportunityScore, 'How promising this market is overall'],
+    ['Entry Barrier', ai.entryBarrierScore, 'How hard it is for new sellers to enter'],
+    ['Competition Score', ai.competitionScore, 'Market saturation level'],
+    ['Demand Score', ai.demandScore, 'Estimated buyer demand'],
+    ['Profitability Score', ai.profitabilityScore, 'Estimated margin potential'],
+    ['Growth Potential', ai.growthPotentialScore, 'Long-term growth outlook'],
   ];
-  qs('scoreGrid').innerHTML = items.map(([label, val]) => `
+  qs('scoreGrid').innerHTML = items
+    .map(
+      ([label, val, hint]) => `
     <div class="card score-card">
       <div class="score-label">${label}</div>
       <div class="score-value">${val}</div>
       <div class="score-bar"><div style="width:${val}%"></div></div>
-    </div>`).join('');
+      <div style="font-size:11px; color:var(--text-muted); margin-top:8px;">${hint}</div>
+    </div>`
+    )
+    .join('');
 }
 
 // ===================== PRICING =====================
@@ -172,9 +216,20 @@ function renderPricing(stats) {
     type: 'bar',
     data: {
       labels: stats.histogram.map((h) => h.range),
-      datasets: [{ label: 'Jumlah listing', data: stats.histogram.map((h) => h.count), backgroundColor: '#a6275c' }],
+      datasets: [{
+        label: 'Listings',
+        data: stats.histogram.map((h) => h.count),
+        backgroundColor: 'rgba(166, 39, 92, 0.75)',
+        borderRadius: 4,
+      }],
     },
-    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { precision: 0 } },
+        x: { grid: { display: false } },
+      },
+    },
   });
 
   if (state.charts.bin) state.charts.bin.destroy();
@@ -182,23 +237,30 @@ function renderPricing(stats) {
     type: 'doughnut',
     data: {
       labels: ['Buy It Now', 'Auction'],
-      datasets: [{ data: [stats.binCount, stats.auctionCount], backgroundColor: ['#1d7a3c', '#f3d9e2'] }],
+      datasets: [{
+        data: [stats.binCount, stats.auctionCount],
+        backgroundColor: ['#1d7a3c', '#f3d9e2'],
+        borderWidth: 0,
+      }],
     },
-    options: { plugins: { legend: { position: 'bottom' } } },
+    options: {
+      plugins: { legend: { position: 'bottom' } },
+      cutout: '65%',
+    },
   });
 }
 
 // ===================== COMPETITION =====================
 function buildListingRow(item) {
-  const img = item.image || 'https://via.placeholder.com/44';
+  const img = item.image || 'https://via.placeholder.com/46';
   return `
     <div class="listing-row" data-item-id="${item.itemId}">
       <img src="${img}" alt="" loading="lazy" />
-      <div style="min-width:0;">
+      <div style="min-width:0; flex:1;">
         <div class="l-title">${item.title}</div>
-        <div class="l-meta">@${item.seller?.username || 'unknown'} · ${item.condition || ''} · ${item.itemLocationCountry || ''}</div>
+        <div class="l-meta">@${item.seller?.username || 'unknown'} · ${item.condition || 'N/A'} · ${item.itemLocationCountry || ''}</div>
       </div>
-      <button class="btn-secondary save-listing-btn" data-save-id="${item.itemId}" style="padding:4px 9px; font-size:11px;">☆ Simpan</button>
+      <button class="btn-secondary save-listing-btn" data-save-id="${item.itemId}" style="padding:5px 10px; font-size:11.5px; flex-shrink:0;">☆ Save</button>
       <div class="l-price">${fmtMoney(item.price, item.currency)}<span class="l-link-icon">↗</span></div>
     </div>`;
 }
@@ -209,25 +271,29 @@ function renderCompetition(stats, listings) {
     <div class="kpi-box"><div class="kpi-label">Active Sellers</div><div class="kpi-value">${stats.uniqueSellers}</div></div>
     <div class="kpi-box"><div class="kpi-label">Top-3 Seller Share</div><div class="kpi-value">${stats.top3SellerShare}%</div></div>`;
 
-  qs('topSellersList').innerHTML = stats.topSellers.map((s) => `
+  qs('topSellersList').innerHTML = stats.topSellers
+    .map(
+      (s) => `
     <div class="listing-row" style="cursor:default;">
-      <div style="min-width:0;">
-        <div class="l-title">${s.username}</div>
-        <div class="l-meta">Feedback ${s.feedbackPercentage ?? '-'}% · Score ${s.feedbackScore ?? '-'}</div>
+      <div style="min-width:0; flex:1;">
+        <div class="l-title">@${s.username}</div>
+        <div class="l-meta">Feedback ${s.feedbackPercentage ?? '-'}% · Score ${s.feedbackScore?.toLocaleString() ?? '-'}</div>
       </div>
-      <div class="l-price">${s.count} listing</div>
-    </div>`).join('');
+      <div class="l-price" style="color:var(--text-secondary); font-size:13px;">${s.count} listing${s.count !== 1 ? 's' : ''}</div>
+    </div>`
+    )
+    .join('');
 
-  // Daftar listing lengkap untuk dibandingkan -> klik = buka produk asli di eBay (tab baru)
-  const listingsHtml = `
-    <div class="card" style="margin-top:14px;">
-      <div class="card-title">Bandingkan Listing Aktif (klik untuk membuka produk asli di eBay)</div>
-      <div id="competitionListings"></div>
-    </div>`;
-  if (!qs('competitionListingsWrap')) {
+  // Full listings comparison panel
+  const wrapId = 'competitionListingsWrap';
+  if (!qs(wrapId)) {
     const wrap = document.createElement('div');
-    wrap.id = 'competitionListingsWrap';
-    wrap.innerHTML = listingsHtml;
+    wrap.id = wrapId;
+    wrap.innerHTML = `
+      <div class="card" style="margin-top:14px;">
+        <div class="card-title">Compare Active Listings — click any row to open on eBay</div>
+        <div id="competitionListings"></div>
+      </div>`;
     document.querySelector('[data-content="competition"]').appendChild(wrap);
   }
   qs('competitionListings').innerHTML = listings.map(buildListingRow).join('');
@@ -248,7 +314,9 @@ function renderCompetition(stats, listings) {
       if (!saved.find((s) => s.itemId === item.itemId)) {
         saved.push(item);
         localStorage.setItem(SAVED_KEY, JSON.stringify(saved));
-        btn.textContent = '★ Tersimpan';
+        btn.textContent = '★ Saved';
+        btn.style.color = 'var(--primary-dark)';
+        btn.style.borderColor = 'var(--primary)';
       }
     });
   });
@@ -256,45 +324,56 @@ function renderCompetition(stats, listings) {
 
 // ===================== KEYWORD =====================
 function renderKeyword(stats) {
-  qs('powerKeywords').innerHTML = `<div style="display:flex; flex-wrap:wrap; gap:8px;">${
-    stats.topKeywords.map((k) => `<span class="tag purple">${k.word} · ${k.count}</span>`).join('')
-  }</div>`;
+  qs('powerKeywords').innerHTML = `
+    <div style="display:flex; flex-wrap:wrap; gap:7px;">
+      ${stats.topKeywords
+        .map(
+          (k) => `<span class="tag purple" style="font-size:12px; padding:4px 11px;">${k.word}
+            <span style="margin-left:6px; opacity:0.6; font-weight:400;">×${k.count}</span>
+          </span>`
+        )
+        .join('')}
+    </div>`;
 }
 
 // ===================== PRODUCT (condition breakdown) =====================
 function renderProduct(listings) {
   const condCount = new Map();
   listings.forEach((l) => {
-    const c = l.condition || 'Tidak diketahui';
+    const c = l.condition || 'Unknown';
     condCount.set(c, (condCount.get(c) || 0) + 1);
   });
   const rows = Array.from(condCount.entries()).sort((a, b) => b[1] - a[1]);
 
   qs('productBody').innerHTML = `
     <div class="card module-card product">
-      <div class="card-title">Performa per Kondisi Barang (dari listing aktif)</div>
-      ${rows.map(([cond, count]) => `
+      <div class="card-title">Listings by Condition</div>
+      ${rows
+        .map(
+          ([cond, count]) => `
         <div class="listing-row" style="cursor:default;">
           <div class="l-title">${cond}</div>
-          <div class="l-price">${count} listing</div>
-        </div>`).join('')}
+          <div class="l-price" style="color:var(--text-secondary);">${count} listing${count !== 1 ? 's' : ''}</div>
+        </div>`
+        )
+        .join('')}
     </div>`;
 }
 
-// ===================== BUYER (geographic, dari lokasi seller listing aktif) =====================
+// ===================== BUYER (geographic proxy from seller location) =====================
 function renderBuyer(listings) {
   const countryCount = new Map();
   listings.forEach((l) => {
-    const c = l.itemLocationCountry || 'Tidak diketahui';
+    const c = l.itemLocationCountry || 'Unknown';
     countryCount.set(c, (countryCount.get(c) || 0) + 1);
   });
   const entries = Array.from(countryCount.entries()).sort((a, b) => b[1] - a[1]);
 
   qs('buyerBody').innerHTML = `
-    <div class="banner info">Catatan: eBay tidak mengekspos data lokasi BUYER ke seller lain lewat API publik. Yang ditampilkan di bawah adalah lokasi SELLER pada listing aktif, sebagai proxy kasar untuk melihat pasar mana yang ramai.</div>
+    <div class="banner info">Note: eBay does not expose buyer location via its public API. The chart below shows seller location from active listings — a rough proxy for which markets are most active for this product.</div>
     <div class="card module-card buyer">
-      <div class="card-title">Distribusi Lokasi Seller (Listing Aktif)</div>
-      <canvas id="geoChart" height="180"></canvas>
+      <div class="card-title">Seller Location Distribution (Active Listings)</div>
+      <canvas id="geoChart" height="200"></canvas>
     </div>`;
 
   if (state.charts.geo) state.charts.geo.destroy();
@@ -302,20 +381,32 @@ function renderBuyer(listings) {
     type: 'bar',
     data: {
       labels: entries.map((e) => e[0]),
-      datasets: [{ label: 'Jumlah listing', data: entries.map((e) => e[1]), backgroundColor: '#d2691e' }],
+      datasets: [{
+        label: 'Listings',
+        data: entries.map((e) => e[1]),
+        backgroundColor: 'rgba(210, 105, 30, 0.75)',
+        borderRadius: 4,
+      }],
     },
-    options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } },
+    options: {
+      indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { beginAtZero: true, ticks: { precision: 0 } },
+        y: { grid: { display: false } },
+      },
+    },
   });
 }
 
-// ===================== DEMAND (scraper opsional) =====================
+// ===================== DEMAND (optional scraper) =====================
 async function fetchSoldData(query) {
   try {
     const res = await fetch(`/api/sold-scraper?q=${encodeURIComponent(query)}`);
     const data = await res.json();
 
     if (!data.available) {
-      qs('demandBody').innerHTML = `<div class="banner warn">${data.message || 'Scraper API belum dikonfigurasi.'}</div>`;
+      qs('demandBody').innerHTML = `<div class="banner warn">${data.message || 'Scraper API not configured.'}</div>`;
       return;
     }
     if (!data.soldCount) {
@@ -326,32 +417,46 @@ async function fetchSoldData(query) {
       <div class="kpi-row">
         <div class="kpi-box"><div class="kpi-label">Sold (snapshot)</div><div class="kpi-value">${data.soldCount}</div></div>
         <div class="kpi-box"><div class="kpi-label">Avg Sold Price</div><div class="kpi-value">${fmtMoney(data.avgSoldPrice)}</div></div>
-        <div class="kpi-box"><div class="kpi-label">Min / Max Sold</div><div class="kpi-value">${fmtMoney(data.minSoldPrice)} - ${fmtMoney(data.maxSoldPrice)}</div></div>
+        <div class="kpi-box"><div class="kpi-label">Min / Max Sold</div><div class="kpi-value">${fmtMoney(data.minSoldPrice)} – ${fmtMoney(data.maxSoldPrice)}</div></div>
       </div>
       <div class="banner info">${data.note}</div>`;
   } catch (err) {
-    qs('demandBody').innerHTML = `<div class="banner error">${err.message}</div>`;
+    qs('demandBody').innerHTML = `<div class="banner error">⚠️ ${err.message}</div>`;
   }
 }
 
-// ===================== SAVED PRODUCTS (localStorage) =====================
-const SAVED_KEY = 'ebayiq_saved_products';
+// ===================== SAVED PRODUCTS =====================
+const SAVED_KEY = 'sellore_saved_products';
+
 function getSaved() {
-  try { return JSON.parse(localStorage.getItem(SAVED_KEY)) || []; } catch { return []; }
+  try { return JSON.parse(localStorage.getItem(SAVED_KEY)) || []; }
+  catch { return []; }
 }
+
 function renderSavedList() {
   const saved = getSaved();
   if (!saved.length) {
-    qs('savedList').innerHTML = `<div class="empty-state"><div class="emoji">📌</div>Belum ada produk disimpan.</div>`;
+    qs('savedList').innerHTML = `
+      <div class="empty-state" style="padding:40px 20px;">
+        <div class="emoji">📌</div>No saved products yet.<br>
+        <span style="font-size:12px; color:var(--text-muted);">Click ☆ Save on any listing to bookmark it here.</span>
+      </div>`;
     return;
   }
-  qs('savedList').innerHTML = saved.map((s) => `
+  qs('savedList').innerHTML = saved
+    .map(
+      (s) => `
     <div class="saved-row">
-      <img src="${s.image || 'https://via.placeholder.com/40'}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;" />
-      <div><div class="l-title">${s.title}</div><div class="l-meta">${fmtMoney(s.price, s.currency)}</div></div>
-      <a href="${s.itemWebUrl}" target="_blank" rel="noopener" class="tag pink">Lihat di eBay</a>
-      <button class="remove-btn" data-id="${s.itemId}">✕</button>
-    </div>`).join('');
+      <img src="${s.image || 'https://via.placeholder.com/42'}" style="width:42px;height:42px;border-radius:8px;object-fit:cover;border:1px solid var(--border);" />
+      <div style="flex:1; min-width:0;">
+        <div class="l-title" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.title}</div>
+        <div class="l-meta">${fmtMoney(s.price, s.currency)} · @${s.seller?.username || ''}</div>
+      </div>
+      <a href="${s.itemWebUrl}" target="_blank" rel="noopener" class="tag pink" style="flex-shrink:0;">View on eBay ↗</a>
+      <button class="remove-btn" data-id="${s.itemId}" title="Remove">✕</button>
+    </div>`
+    )
+    .join('');
   document.querySelectorAll('.remove-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       const next = getSaved().filter((s) => s.itemId !== btn.dataset.id);
@@ -361,52 +466,73 @@ function renderSavedList() {
   });
 }
 
-// ===================== EXPORT (Reports) =====================
+// ===================== EXPORT =====================
 qs('exportCsvBtn').addEventListener('click', () => {
-  if (!state.result?.listings?.length) { alert('Belum ada data untuk diexport. Jalankan Analyze dulu.'); return; }
-  const rows = [['Title', 'Price', 'Currency', 'Condition', 'Seller', 'ItemLocation', 'ItemWebUrl']];
+  if (!state.result?.listings?.length) {
+    alert('No data to export. Run an analysis first.');
+    return;
+  }
+  const rows = [
+    ['Title', 'Price', 'Currency', 'Condition', 'Seller', 'ItemLocation', 'ItemWebUrl'],
+  ];
   state.result.listings.forEach((l) => {
     rows.push([l.title, l.price, l.currency, l.condition, l.seller?.username, l.itemLocationCountry, l.itemWebUrl]);
   });
-  const csv = rows.map((r) => r.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+  const csv = rows
+    .map((r) => r.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','))
+    .join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `ebayiq-${state.result.query.replace(/\s+/g, '_')}.csv`;
+  a.download = `sellore-${state.result.query.replace(/\s+/g, '_')}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 });
 
 qs('exportPdfBtn').addEventListener('click', () => window.print());
 
-// ===================== API SETTINGS: cek koneksi =====================
+// ===================== API SETTINGS: test connections =====================
 function setDot(id, ok) {
   qs(id).className = `status-dot ${ok ? 'ok' : 'bad'}`;
 }
 
 qs('checkEbayBtn').addEventListener('click', async () => {
+  qs('checkEbayBtn').textContent = 'Testing…';
   try {
     const res = await fetch('/api/ebay-search?q=test&condition=ALL&marketplace=US');
     setDot('dotEbay', res.ok);
   } catch { setDot('dotEbay', false); }
+  qs('checkEbayBtn').textContent = 'Test Connection';
 });
 
 qs('checkDeepseekBtn').addEventListener('click', async () => {
+  qs('checkDeepseekBtn').textContent = 'Testing…';
   try {
     const res = await fetch('/api/ai-insight', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: 'test', stats: { totalActiveListings: 1, uniqueSellers: 1, avgPrice: 1, medianPrice: 1, minPrice: 1, maxPrice: 1, histogram: [], binCount: 1, auctionCount: 0, topSellers: [], top3SellerShare: 100, topKeywords: [] } }),
+      body: JSON.stringify({
+        query: 'test',
+        stats: {
+          totalActiveListings: 1, uniqueSellers: 1,
+          avgPrice: 1, medianPrice: 1, minPrice: 1, maxPrice: 1,
+          histogram: [], binCount: 1, auctionCount: 0,
+          topSellers: [], top3SellerShare: 100, topKeywords: [],
+        },
+      }),
     });
     setDot('dotDeepseek', res.ok);
   } catch { setDot('dotDeepseek', false); }
+  qs('checkDeepseekBtn').textContent = 'Test Connection';
 });
 
 qs('checkScraperBtn').addEventListener('click', async () => {
+  qs('checkScraperBtn').textContent = 'Testing…';
   try {
     const res = await fetch('/api/sold-scraper?q=test');
     const data = await res.json();
     setDot('dotScraper', !!data.available);
   } catch { setDot('dotScraper', false); }
+  qs('checkScraperBtn').textContent = 'Test Connection';
 });
